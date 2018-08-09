@@ -1,6 +1,6 @@
 --[[
 Author: Rinart73
-Version: 0.0.8
+Version: 0.0.9
 
 This UTF-8 lib was made specifically for Avorion to help modders and to show devs that we need native UTF-8 support in Lua.
 I tried to collect and construct the best implementations of functions with a goal of achieving max performance while keeping input and output relatively close to the native Lua 5.2/5.3 functions.
@@ -58,10 +58,6 @@ local sort = table.sort
 local remove = table.remove
 local floor = math.floor
 
-local shift_6  = 2^6
-local shift_12 = 2^12
-local shift_18 = 2^18
-
 -- data will be loaded once but only if lower/upper/compare functions were called
 local lowerCase
 local upperCase
@@ -73,25 +69,7 @@ local lang = getCurrentLanguage ~= nil and getCurrentLanguage() or "en" -- use e
 utf8.charpattern = "([%z\1-\127\194-\244][\128-\191]*)"
 
 --[[
-Returns codepoint for a single utf8 character. Basically equal to utf8.byte(char), but faster
-]]
-function utf8.singlebyte(c)
-    local bytes = len(c)
-    if bytes == 1 then return byte(c) end
-    if bytes == 2 then
-        local byte0, byte1 = byte(c, 1, 2)
-        return (byte0 - 0xC0) * shift_6 + (byte1 - 0x80)
-    end
-    if bytes == 3 then
-        local byte0, byte1, byte2 = byte(c, 1, 3)
-        return (byte0 - 0xE0) * shift_12 + (byte1 - 0x80) * shift_6 + (byte2 - 0x80)
-    end
-    local byte0, byte1, byte2, byte3 = byte(c, 1, 4)
-    return (byte0 - 0xF0) * shift_18 + (byte1 - 0x80) * shift_12 + (byte2 - 0x80) * shift_6 + (byte3 - 0x80) 
-end
-
---[[
-Returns string as char table
+Returns string as utf8 char table
 ]]
 function utf8.table(s)
     local r = {}
@@ -99,6 +77,24 @@ function utf8.table(s)
         r[#r+1] = chr
     end
     return r
+end
+
+--[[
+Returns codepoint for a single utf8 character. Basically equal to utf8.byte(char), but faster
+]]
+function utf8.singlebyte(c)
+    local bytes = len(c)
+    if bytes == 1 then return byte(c) end
+    if bytes == 2 then
+        local byte0, byte1 = byte(c, 1, 2)
+        return (byte0 - 0xC0) * 0x40 + (byte1 - 0x80)
+    end
+    if bytes == 3 then
+        local byte0, byte1, byte2 = byte(c, 1, 3)
+        return (byte0 - 0xE0) * 0x1000 + (byte1 - 0x80) * 0x40 + (byte2 - 0x80)
+    end
+    local byte0, byte1, byte2, byte3 = byte(c, 1, 4)
+    return (byte0 - 0xF0) * 0x40000 + (byte1 - 0x80) * 0x1000 + (byte2 - 0x80) * 0x40 + (byte3 - 0x80) 
 end
 
 function utf8.byte(s, i, j) -- string.byte (s [, i [, j]])
@@ -122,27 +118,33 @@ function utf8.byte(s, i, j) -- string.byte (s [, i [, j]])
     return unpack(r)
 end
 
+--[[
+The same as utf8.char but for a single code. For performance reasons, because calling utf8.char for 1 codepoint is SLOW
+]]
+function utf8.singlechar(code)
+    if code < 0x80 then
+        return char(code)
+    end
+    if code < 0x7FF then
+        return char(floor(code / 0x40) + 0xC0, code % 0x40 + 0x80)
+    end
+    if code < 0xFFFF then
+        local byte0 = floor(code / 0x1000) + 0xE0
+        code = code % 0x1000
+        return char(byte0, floor(code / 0x40) + 0x80, code % 0x40 + 0x80)
+    end
+    local byte0 = floor(code / 0x40000) + 0xF0
+    code = code % 0x40000
+    local byte1 = floor(code / 0x1000) + 0x80
+    code = code % 0x1000
+    return char(byte0, byte1, floor(code / 0x40) + 0x80, code % 0x40 + 0x80)
+end
+
 function utf8.char(...) -- string.char (...)
-    local r = {}
-    local arg = {...}
+    local r = {...}
     local code
-    for i = 1, #arg do
-        code = arg[i]
-        if code < 0x80 then
-            r[#r+1] = char(code)
-        elseif code < 0x7FF then
-            r[#r+1] = char(floor(code / 0x40) + 0xC0, code % 0x40 + 0x80)
-        elseif code < 0xFFFF then
-            local byte0 = floor(code / 0x1000) + 0xE0
-            code = code % 0x1000
-            r[#r+1] = char(byte0, floor(code / 0x40) + 0x80, code % 0x40 + 0x80)
-        else
-            local byte0 = floor(code / 0x40000) + 0xF0
-            code = code % 0x40000
-            local byte1 = floor(code / 0x1000) + 0x80
-            code = code % 0x1000
-            r[#r+1] = char(byte0, byte1, floor(code / 0x40) + 0x80, code % 0x40 + 0x80)
-        end
+    for i = 1, #r do
+        r[i] = utf8.singlechar(r[i])
     end
     return concat(r)
 end
@@ -162,7 +164,7 @@ end
 --[[
 Currently only supports `plain` = true (no patterns)
 ]]
-function utf8.find(s, pattern, init, plain) -- string.find (s, pattern [, init [, plain]])
+function utf8.find(s, pattern, init, plain, simple) -- string.find (s, pattern [, init [, plain]])
     plain = true
     if init == nil then init = 1
     elseif init > 1 then
@@ -180,6 +182,7 @@ function utf8.find(s, pattern, init, plain) -- string.find (s, pattern [, init [
         -- TODO
     end
     if #r == 0 then return end
+    if simple then return true end
     -- Search for char pos and correct end pos
     local posBegin = 0
     local posEnd = 0
@@ -214,7 +217,7 @@ function utf8.len(s) -- string.len (s)
 end
 
 --[[
-Added optional argument `asTable` - return as char table
+Optional argument `asTable` - return as char table
 ]]
 function utf8.lower(s, asTable) -- string.lower (s)
     if not lowerCase then
@@ -223,7 +226,7 @@ function utf8.lower(s, asTable) -- string.lower (s)
             lowerCase = false
             c, b = pcall(require, 'utf8-lower')
         end
-        if not c then print("utf8-lower ERROR") return not asTable and lower(s) or utf8.table(s) end
+        if not c then return not asTable and lower(s) or utf8.table(lower(s)) end
         lowerCase = b
     end
     local r = {}
@@ -266,7 +269,7 @@ function utf8.upper(s, asTable) -- string.upper (s)
                 lowerCase = false
                 c, b = pcall(require, 'utf8-lower')
             end
-            if not c then return not asTable and lower(s) or utf8.table(s) end
+            if not c then return not asTable and upper(s) or utf8.table(upper(s)) end
             lowerCase = b
         end
         upperCase = {}
