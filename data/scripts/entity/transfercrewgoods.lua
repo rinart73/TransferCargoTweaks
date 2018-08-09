@@ -42,13 +42,14 @@ local selfCargoTextBoxByIndex = {}
 --MOD: TransferCargoTweaks
 package.path = package.path .. ";mods/TransferCargoTweaks/?.lua"
 local utf8 = require "scripts/lib/utf8"
-local TransferCargoTweaksConfig = require "config/Config"
+local TransferCargoTweaksConfig = require "config/config"
 
 local playerCargoSearchBox
 local selfCargoSearchBox
 
--- i don't know how big the impact from utf8.upper function, but I'm sure that update/search function should be as fast as possible
-local cargoCapitalizedCache = {}
+local cargoLowercaseCache = {} -- cache lowercased names
+local playerPrevQuery = {}
+local selfPrevQuery = {}
 -- goods indexes in saved cargo lists by name
 local playerGoodIndexesByName
 local selfGoodIndexesByName
@@ -74,6 +75,9 @@ local selfCargoPrevCount = 0
 -- we want to keep textbox values for goods even if their rows are currently hidden
 local playerAmountByIndex = {}
 local selfAmountByIndex = {}
+
+local playerToggleSearchBtn
+local selfToggleSearchBtn
 --MOD
 
 local playerTransferAllCargoButton = {}
@@ -118,6 +122,8 @@ function TransferCrewGoods.interactionPossible(playerIndex, option)
     end
 
     local shipFaction = Faction()
+    if not shipFaction then return false end
+
     if shipFaction.isPlayer then
         if shipFaction.index ~= playerIndex then
             return false
@@ -202,14 +208,10 @@ function TransferCrewGoods.initUI()
         box.text = "1"
 
         --MOD: TransferCargoTweaks
-        --table.insert(playerCrewIcons, icon)
-        --table.insert(playerCrewButtons, button)
-        --table.insert(playerCrewBars, bar)
-        --table.insert(playerCrewTextBoxes, box)
-        playerCrewIcons[#playerCrewIcons+1] = icon
-        playerCrewButtons[#playerCrewButtons+1] = button
-        playerCrewBars[#playerCrewBars+1] = bar
-        playerCrewTextBoxes[#playerCrewTextBoxes+1] = box
+        playerCrewIcons[#playerCrewIcons+1] = icon --table.insert(playerCrewIcons, icon)
+        playerCrewButtons[#playerCrewButtons+1] = button --table.insert(playerCrewButtons, button)
+        playerCrewBars[#playerCrewBars+1] = bar --table.insert(playerCrewBars, bar)
+        playerCrewTextBoxes[#playerCrewTextBoxes+1] = box --table.insert(playerCrewTextBoxes, box)
         --MOD
         crewmenByButton[button.index] = i
         crewmenByTextBox[box.index] = i
@@ -231,14 +233,10 @@ function TransferCrewGoods.initUI()
         box.text = "1"
 
         --MOD: TransferCargoTweaks
-        --table.insert(selfCrewIcons, icon)
-        --table.insert(selfCrewButtons, button)
-        --table.insert(selfCrewBars, bar)
-        --table.insert(selfCrewTextBoxes, box)
-        selfCrewIcons[#selfCrewIcons+1] = icon
-        selfCrewButtons[#selfCrewButtons+1] = button
-        selfCrewBars[#selfCrewBars+1] = bar
-        selfCrewTextBoxes[#selfCrewTextBoxes+1] = box
+        selfCrewIcons[#selfCrewIcons+1] = icon  --table.insert(selfCrewIcons, icon)
+        selfCrewButtons[#selfCrewButtons+1] = button --table.insert(selfCrewButtons, button)
+        selfCrewBars[#selfCrewBars+1] = bar --table.insert(selfCrewBars, bar)
+        selfCrewTextBoxes[#selfCrewTextBoxes+1] = box --table.insert(selfCrewTextBoxes, box)
         --MOD
         crewmenByButton[button.index] = i
         crewmenByTextBox[box.index] = i
@@ -274,22 +272,21 @@ function TransferCrewGoods.initUI()
     rightLister:placeElementCenter(selfTotalCargoBar)
     
     --MOD: TransferCargoTweaks
-    local playerToggleSearchBtn = leftFrame:createButton(Rect(10, 10, 35, playerTransferAllCargoButton.height+10), "", "onPlayerToggleCargoSearchPressed")
+    playerToggleSearchBtn = leftFrame:createButton(Rect(10, 10, 35, playerTransferAllCargoButton.height+10), "", "onPlayerToggleCargoSearchPressed")
     playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
     
-    local selfToggleSearchBtn = rightFrame:createButton(Rect(rightFrame.width-55, 10, rightFrame.width-30, selfTransferAllCargoButton.height+10), "", "onSelfToggleCargoSearchPressed")
+    selfToggleSearchBtn = rightFrame:createButton(Rect(rightFrame.width-55, 10, rightFrame.width-30, selfTransferAllCargoButton.height+10), "", "onSelfToggleCargoSearchPressed")
     selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
     
     playerCargoSearchBox = leftFrame:createTextBox(Rect(42, playerTransferAllCargoButton.height+22, playerTotalCargoBar.width+38, playerTransferAllCargoButton.height+playerTotalCargoBar.height+18), "playerCargoSearch")
-    playerCargoSearchBox.backgroundText = "search.."
+    playerCargoSearchBox.backgroundText = "Search"%_t
     playerCargoSearchBox.visible = false
     
     selfCargoSearchBox = rightFrame:createTextBox(Rect(12, selfTransferAllCargoButton.height+22, rightFrame.width-62, selfTransferAllCargoButton.height+selfTotalCargoBar.height+18), "selfCargoSearch")
-    selfCargoSearchBox.backgroundText = "search.."
+    selfCargoSearchBox.backgroundText = "Search"%_t
     selfCargoSearchBox.visible = false
 
-    --for i = 1, 100 do
-    for i = 1, TransferCargoTweaksConfig.CargoRowsAmount do
+    for i = 1, TransferCargoTweaksConfig.CargoRowsAmount do --for i = 1, 100 do
     --MOD
 
         local iconRect = Rect(leftLister.inner.topLeft - vec2(30, 0), leftLister.inner.topLeft + vec2(0, 30))
@@ -306,15 +303,11 @@ function TransferCrewGoods.initUI()
         box.allowedCharacters = "0123456789"
 
         --MOD: TransferCargoTweaks
-        --table.insert(playerCargoIcons, icon)
-        --table.insert(playerCargoButtons, button)
-        --table.insert(playerCargoBars, bar)
-        --table.insert(playerCargoTextBoxes, box)
+        playerCargoIcons[#playerCargoIcons+1] = icon --table.insert(playerCargoIcons, icon)
+        playerCargoButtons[#playerCargoButtons+1] = button --table.insert(playerCargoButtons, button)
+        playerCargoBars[#playerCargoBars+1] = bar --table.insert(playerCargoBars, bar)
+        playerCargoTextBoxes[#playerCargoTextBoxes+1] = box --table.insert(playerCargoTextBoxes, box)
         --table.insert(playerCargoName, "")
-        playerCargoIcons[#playerCargoIcons+1] = icon
-        playerCargoButtons[#playerCargoButtons+1] = button
-        playerCargoBars[#playerCargoBars+1] = bar
-        playerCargoTextBoxes[#playerCargoTextBoxes+1] = box
         
         local overlayName = leftFrame:createLabel(Rect(vsplit2.left.topLeft + vec2(0, 6), vsplit2.left.bottomRight), "", 10)
         overlayName.centered = true
@@ -346,21 +339,16 @@ function TransferCrewGoods.initUI()
         box.allowedCharacters = "0123456789"
 
         --MOD: TransferCargoTweaks
-        --table.insert(selfCargoIcons, icon)
-        --table.insert(selfCargoButtons, button)
-        --table.insert(selfCargoBars, bar)
-        --table.insert(selfCargoTextBoxes, box)
-        --table.insert(selfCargoName, "")
-        
         local overlayName = rightFrame:createLabel(Rect(vsplit2.right.topLeft + vec2(0, 6), vsplit2.right.bottomRight), "", 10)
         overlayName.centered = true
         overlayName.wordBreak = false
         selfCargoOverlayNames[#selfCargoOverlayNames+1] = { elem = overlayName }
         
-        selfCargoIcons[#selfCargoIcons+1] = icon
-        selfCargoButtons[#selfCargoButtons+1] = button
-        selfCargoBars[#selfCargoBars+1] = bar
-        selfCargoTextBoxes[#selfCargoTextBoxes+1] = box
+        selfCargoIcons[#selfCargoIcons+1] = icon --table.insert(selfCargoIcons, icon)
+        selfCargoButtons[#selfCargoButtons+1] = button --table.insert(selfCargoButtons, button)
+        selfCargoBars[#selfCargoBars+1] = bar --table.insert(selfCargoBars, bar)
+        selfCargoTextBoxes[#selfCargoTextBoxes+1] = box --table.insert(selfCargoTextBoxes, box)
+        --table.insert(selfCargoName, "")
         
         icon.visible = false
         button.visible = false
@@ -393,8 +381,7 @@ function TransferCrewGoods.initUI()
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 18))
         local label = fightersTab:createLabel(rect, "", 16)
         --MOD: TransferCargoTweaks
-        --table.insert(playerFighterLabels, label)
-        playerFighterLabels[#playerFighterLabels+1] = label
+        playerFighterLabels[#playerFighterLabels+1] = label --table.insert(playerFighterLabels, label)
         --MOD
 
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 35))
@@ -408,8 +395,7 @@ function TransferCrewGoods.initUI()
         selection.padding = 4
 
         --MOD: TransferCargoTweaks
-        --table.insert(playerFighterSelections, selection)
-        playerFighterSelections[#playerFighterSelections+1] = selection
+        playerFighterSelections[#playerFighterSelections+1] = selection --table.insert(playerFighterSelections, selection)
         --MOD
         isPlayerShipBySelection[selection.index] = true
         squadIndexBySelection[selection.index] = i - 1
@@ -418,8 +404,7 @@ function TransferCrewGoods.initUI()
         local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 18))
         local label = fightersTab:createLabel(rect, "", 16)
         --MOD: TransferCargoTweaks
-        --table.insert(selfFighterLabels, label)
-        selfFighterLabels[#selfFighterLabels+1] = label
+        selfFighterLabels[#selfFighterLabels+1] = label --table.insert(selfFighterLabels, label)
         --MOD
 
         local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 35))
@@ -433,8 +418,7 @@ function TransferCrewGoods.initUI()
         selection.padding = 4
 
         --MOD: TransferCargoTweaks
-        --table.insert(selfFighterSelections, selection)
-        selfFighterSelections[#selfFighterSelections+1] = selection
+        selfFighterSelections[#selfFighterSelections+1] = selection --table.insert(selfFighterSelections, selection)
         --MOD
         isPlayerShipBySelection[selection.index] = false
         squadIndexBySelection[selection.index] = i - 1
@@ -459,7 +443,15 @@ function TransferCrewGoods.getSortedCrewmen(entity)
         end
     end
 
+
+    local sortedMembers = {}
+
     local crew = entity.crew
+    if crew then
+        for crewman, num in pairs(crew:getMembers()) do
+            table.insert(sortedMembers, {crewman = crewman, num = num})
+        end
+    end
 
     local sortedMembers = {}
     for crewman, num in pairs(crew:getMembers()) do
@@ -483,30 +475,21 @@ function TransferCrewGoods.updateData()
     selfTotalCrewBar:setRange(0, ship.maxCrewSize)
 
     --MOD: TransferCargoTweaks
-    --for _, icon in pairs(playerCrewIcons) do icon.visible = false end
-    --for _, icon in pairs(selfCrewIcons) do icon.visible = false end
-    --for _, bar in pairs(playerCrewBars) do bar.visible = false end
-    --for _, bar in pairs(selfCrewBars) do bar.visible = false end
-    --for _, button in pairs(playerCrewButtons) do button.visible = false end
-    --for _, button in pairs(selfCrewButtons) do button.visible = false end
-    --for _, box in pairs(playerCrewTextBoxes) do box.visible = false end
-    --for _, box in pairs(selfCrewTextBoxes) do box.visible = false end
-    for i = 1, #playerCrewIcons do playerCrewIcons[i].visible = false end
-    for i = 1, #selfCrewIcons do selfCrewIcons[i].visible = false end
-    for i = 1, #playerCrewBars do playerCrewBars[i].visible = false end
-    for i = 1, #selfCrewBars do selfCrewBars[i].visible = false end
-    for i = 1, #playerCrewButtons do playerCrewButtons[i].visible = false end
-    for i = 1, #selfCrewButtons do selfCrewButtons[i].visible = false end
-    for i = 1, #playerCrewTextBoxes do playerCrewTextBoxes[i].visible = false end
-    for i = 1, #selfCrewTextBoxes do selfCrewTextBoxes[i].visible = false end
+    for i = 1, #playerCrewIcons do playerCrewIcons[i].visible = false end --for _, icon in pairs(playerCrewIcons) do icon.visible = false end
+    for i = 1, #selfCrewIcons do selfCrewIcons[i].visible = false end --for _, icon in pairs(selfCrewIcons) do icon.visible = false end
+    for i = 1, #playerCrewBars do playerCrewBars[i].visible = false end --for _, bar in pairs(playerCrewBars) do bar.visible = false end
+    for i = 1, #selfCrewBars do selfCrewBars[i].visible = false end --for _, bar in pairs(selfCrewBars) do bar.visible = false end
+    for i = 1, #playerCrewButtons do playerCrewButtons[i].visible = false end --for _, button in pairs(playerCrewButtons) do button.visible = false end
+    for i = 1, #selfCrewButtons do selfCrewButtons[i].visible = false end --for _, button in pairs(selfCrewButtons) do button.visible = false end
+    for i = 1, #playerCrewTextBoxes do playerCrewTextBoxes[i].visible = false end --for _, box in pairs(playerCrewTextBoxes) do box.visible = false end
+    for i = 1, #selfCrewTextBoxes do selfCrewTextBoxes[i].visible = false end --for _, box in pairs(selfCrewTextBoxes) do box.visible = false end
     --MOD
 
     -- restore textbox values
     local amountByIndex = {}
     for crewIndex, index in pairs(playerCrewTextBoxByIndex) do
         --MOD: TransferCargoTweaks
-        --table.insert(amountByIndex, crewIndex, playerCrewTextBoxes[index].text)
-        amountByIndex[crewIndex] = playerCrewTextBoxes[index].text
+        amountByIndex[crewIndex] = playerCrewTextBoxes[index].text --table.insert(amountByIndex, crewIndex, playerCrewTextBoxes[index].text)
         --MOD
     end
 
@@ -559,8 +542,7 @@ function TransferCrewGoods.updateData()
     local amountByIndex = {}
     for crewIndex, index in pairs(selfCrewTextBoxByIndex) do
         --MOD: TransferCargoTweaks
-        --table.insert(amountByIndex, crewIndex, selfCrewTextBoxes[index].text)
-        amountByIndex[crewIndex] = selfCrewTextBoxes[index].text
+        amountByIndex[crewIndex] = selfCrewTextBoxes[index].text --table.insert(amountByIndex, crewIndex, selfCrewTextBoxes[index].text)
         --MOD
     end
 
@@ -601,8 +583,7 @@ function TransferCrewGoods.updateData()
 
         local amount = TransferCrewGoods.clampNumberString(amountByIndex[index] or "1", num)
         --MOD: TransferCargoTweaks
-        --table.insert(selfCrewTextBoxByIndex, index, i)
-        selfCrewTextBoxByIndex[index] = i
+        selfCrewTextBoxByIndex[index] = i --table.insert(selfCrewTextBoxByIndex, index, i)
         --MOD
 
         local box = selfCrewTextBoxes[i]
@@ -623,18 +604,7 @@ function TransferCrewGoods.updateData()
     selfTotalCargoBar:setRange(0, ship.maxCargoSpace)
     
     --MOD: TransferCargoTweaks
-    -- restore textbox values
-    --[[local playerAmountByIndex = {}
-    local selfAmountByIndex = {}
-    for cargoName, index in pairs(playerCargoTextBoxByIndex) do
-        playerAmountByIndex[cargoName] = playerCargoTextBoxes[index].text
-    end
-    for cargoName, index in pairs(selfCargoTextBoxByIndex) do
-        selfAmountByIndex[cargoName] = selfCargoTextBoxes[index].text
-    end
-
-    playerCargoTextBoxByIndex = {}
-    selfCargoTextBoxByIndex = {}]]
+    -- removed lines from 498 to 509
     --MOD
     
     --MOD: TransferCargoTweaks
@@ -647,7 +617,7 @@ function TransferCrewGoods.updateData()
     playerCargoList = {}
     selfCargoList = {}
     
-    for i = 1, playerShip.numCargos do
+    for i = 1, (playerShip.numCargos or 0) do
         local good, amount = playerShip:getCargo(i - 1)
         playerCargoList[i] = { good = good, amount = amount }
         playerGoodNames[i] = good.displayName
@@ -655,9 +625,9 @@ function TransferCrewGoods.updateData()
         
         playerTotalCargoBar:addEntry(amount * good.size, amount .. " " .. (amount > 1 and good.displayPlural or good.displayName), ColorInt(0xff808080))
     end
-    table.sort(playerGoodNames)
+    table.sort(playerGoodNames, utf8.comparesensitive)
 
-    for i = 1, ship.numCargos do
+    for i = 1, (ship.numCargos or 0) do
         local good, amount = ship:getCargo(i - 1)
         selfCargoList[i] = { good = good, amount = amount }
         selfGoodNames[i] = good.displayName
@@ -665,99 +635,20 @@ function TransferCrewGoods.updateData()
         
         selfTotalCargoBar:addEntry(amount * good.size, amount .. " " .. (amount > 1 and good.displayPlural or good.displayName), ColorInt(0xff808080))
     end
-    table.sort(selfGoodNames)
+    table.sort(selfGoodNames, utf8.comparesensitive)
     
     TransferCrewGoods.playerCargoSearch()
     TransferCrewGoods.selfCargoSearch()
     
-    --[[for i, _ in pairs(playerCargoBars) do
-
-        local icon = playerCargoIcons[i]
-        local bar = playerCargoBars[i]
-        local button = playerCargoButtons[i]
-        local box = playerCargoTextBoxes[i]
-
-        if i > playerShip.numCargos then
-            icon:hide()
-            bar:hide()
-            button:hide()
-            box:hide()
-        else
-            icon:show()
-            bar:show()
-            button:show()
-
-
-            local good, amount = playerShip:getCargo(i - 1)
-            local maxSpace = playerShip.maxCargoSpace
-            playerCargoName[i] = good.name
-            icon.picture = good.icon
-            bar:setRange(0, maxSpace)
-            bar.value = amount * good.size
-
-            -- restore textbox value
-            local boxAmount = TransferCrewGoods.clampNumberString(playerAmountByIndex[good.name] or "1", amount)
-            playerCargoTextBoxByIndex[good.name] = i
-            box:show()
-            box.text = boxAmount
-
-            if amount > 1 then
-                bar.name = amount .. " " .. good.displayPlural
-                playerTotalCargoBar:addEntry(amount * good.size, amount .. " " .. good.displayPlural, ColorInt(0xffa0a0a0))
-            else
-                bar.name = amount .. " " .. good.displayName
-                playerTotalCargoBar:addEntry(amount * good.size, amount .. " " .. good.displayName, ColorInt(0xffa0a0a0))
-            end
-        end
-
-        local icon = selfCargoIcons[i]
-        local bar = selfCargoBars[i]
-        local button = selfCargoButtons[i]
-        local box = selfCargoTextBoxes[i]
-
-        if i > ship.numCargos then
-            icon:hide()
-            bar:hide()
-            button:hide()
-            box:hide()
-        else
-            icon:show()
-            bar:show()
-            button:show()
-
-            local good, amount = ship:getCargo(i - 1)
-            local maxSpace = ship.maxCargoSpace
-            icon.picture = good.icon
-            bar:setRange(0, maxSpace)
-            bar.value = amount * good.size
-
-            -- restore textbox value
-            local boxAmount = TransferCrewGoods.clampNumberString(selfAmountByIndex[good.name] or "1", amount)
-            selfCargoTextBoxByIndex[good.name] = i
-            box:show()
-            box.text = boxAmount
-
-            if amount > 1 then
-                bar.name = amount .. " " .. good.displayPlural
-                selfTotalCargoBar:addEntry(amount * good.size, amount .. " " .. good.displayPlural, ColorInt(0xffa0a0a0))
-            else
-                bar.name = amount .. " " .. good.displayName
-                selfTotalCargoBar:addEntry(amount * good.size, amount .. " " .. good.displayName, ColorInt(0xffa0a0a0))
-            end
-        end
-    end]]
+    -- removed lines from 511 to 586
     --MOD
 
     -- update fighter info
     --MOD: TransferCargoTweaks
-    --for _, label in pairs(playerFighterLabels) do label:hide() end
-    --for _, label in pairs(selfFighterLabels) do label:hide() end
-    --for _, selection in pairs(playerFighterSelections) do selection:hide() end
-    --for _, selection in pairs(selfFighterSelections) do selection:hide() end
-    for i = 1, #playerFighterLabels do playerFighterLabels[i].visible = false end
-    for i = 1, #selfFighterLabels do selfFighterLabels[i].visible = false end
-    for i = 1, #playerFighterSelections do playerFighterSelections[i].visible = false end
-    for i = 1, #selfFighterSelections do selfFighterSelections[i].visible = false end
+    for i = 1, #playerFighterLabels do playerFighterLabels[i].visible = false end --for _, label in pairs(playerFighterLabels) do label:hide() end
+    for i = 1, #selfFighterLabels do selfFighterLabels[i].visible = false end --for _, label in pairs(selfFighterLabels) do label:hide() end
+    for i = 1, #playerFighterSelections do playerFighterSelections[i].visible = false end --for _, selection in pairs(playerFighterSelections) do selection:hide() end
+    for i = 1, #selfFighterSelections do selfFighterSelections[i].visible = false end --for _, selection in pairs(selfFighterSelections) do selection:hide() end
     --MOD
 
     -- left side (player)
@@ -952,7 +843,7 @@ function TransferCrewGoods.onPlayerTransferCargoTextEntered(textBox)
     local sender = Entity(Player().craftIndex)
     --MOD: TransferCargoTweaks
     --local good, maxAmount = sender:getCargo(cargoIndex - 1)
-    local maxAmount = playerCargoList[playerGoodIndexesByName[playerGoodSearchNames[cargoIndex]]].amount
+    local maxAmount = playerCargoList[playerGoodIndexesByName[playerGoodSearchNames[cargoIndex]]].amount or 0
     --MOD
 
     if newNumber > maxAmount then
@@ -979,7 +870,7 @@ function TransferCrewGoods.onSelfTransferCargoTextEntered(textBox)
     local sender = Entity()
     --MOD: TransferCargoTweaks
     --local good, maxAmount = sender:getCargo(cargoIndex - 1)
-    local maxAmount = selfCargoList[selfGoodIndexesByName[selfGoodSearchNames[cargoIndex]]].amount
+    local maxAmount = selfCargoList[selfGoodIndexesByName[selfGoodSearchNames[cargoIndex]]].amount or 0
     --MOD
 
     if newNumber > maxAmount then
@@ -1487,7 +1378,7 @@ function TransferCrewGoods.renderUI()
     if not activeSelection then return end
 
     local mousePos = Mouse().position
-    local key = activeSelection:getKey(mousePos)
+    local key = activeSelection:getMouseOveredKey()
     if key.y ~= 0 then return end
     if key.x < 0 then return end
 
@@ -1519,34 +1410,45 @@ function TransferCrewGoods.onSelfToggleCargoSearchPressed(button)
     selfCargoSearchBox.visible = not selfCargoSearchBox.visible
 end
 
-function TransferCrewGoods.playerCargoSearch(isUpdate)
+function TransferCrewGoods.playerCargoSearch()
     local playerShip = Player().craft
     
-    local query = utf8.upper(playerCargoSearchBox.text)
+    -- save/retrieve lowercase query because we don't want to recalculate it every update (not search)
+    local query = playerCargoSearchBox.text
+    if playerPrevQuery[1] ~= query then
+        if playerPrevQuery[1] == '' then
+            playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search-text.png"
+        elseif query == '' then
+            playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+        end
+        playerPrevQuery[1] = query
+        playerPrevQuery[2] = utf8.lower(query)
+    end
+    query = playerPrevQuery[2]
     
+    -- save textbox numbers
     for cargoName, index in pairs(playerCargoTextBoxByIndex) do
         playerAmountByIndex[cargoName] = playerCargoTextBoxes[index].text
     end
     playerCargoTextBoxByIndex = {}
 
-    local playerMaxSpace = playerShip.maxCargoSpace
+    local playerMaxSpace = playerShip.maxCargoSpace or 0
     
-    playerGoodSearchNames = {}
+    playerGoodSearchNames = {} --list of good names that is currently shown
 
     local rowNumber = 0
     for i = 1, #playerGoodNames do
         if rowNumber == TransferCargoTweaksConfig.CargoRowsAmount then break end
 
-        local nameCapitalized
+        -- save/retrieve lowercase good names
+        local nameLowercase
         local displayName = playerGoodNames[i]
-        if cargoCapitalizedCache[nameCapitalized] then
-            nameCapitalized = cargoCapitalizedCache[displayName]
-        else
-            cargoCapitalizedCache[displayName] = utf8.upper(displayName)
-            nameCapitalized = cargoCapitalizedCache[displayName]
+        if not cargoLowercaseCache[nameLowercase] then
+            cargoLowercaseCache[displayName] = utf8.lower(displayName)
         end
+        nameLowercase = cargoLowercaseCache[displayName]
         
-        if query == "" or utf8.find(nameCapitalized, query) then
+        if query == "" or utf8.find(nameLowercase, query, 1, true) then
             rowNumber = rowNumber + 1
         
             local bar = playerCargoBars[rowNumber]
@@ -1571,6 +1473,7 @@ function TransferCrewGoods.playerCargoSearch(isUpdate)
             playerCargoTextBoxes[rowNumber].text = boxAmount
             
             local displayName = amount > 1 and good.displayPlural or good.displayName
+            -- adjust overlay name vertically (because we don't have built-in way to do this)
             if utf8.len(displayName) > 29 then
                 if not overlayName.reducedFont then
                     overlayName.reducedFont = true
@@ -1607,17 +1510,27 @@ function TransferCrewGoods.playerCargoSearch(isUpdate)
     playerCargoPrevCount = rowNumber
 end
 
-function TransferCrewGoods.selfCargoSearch(isUpdate)
+function TransferCrewGoods.selfCargoSearch()
     local ship = Entity()
     
-    local query = utf8.upper(selfCargoSearchBox.text)
+    local query = selfCargoSearchBox.text
+    if selfPrevQuery[1] ~= query then
+        if selfPrevQuery[1] == '' then
+            selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search-text.png"
+        elseif query == '' then
+            selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+        end
+        selfPrevQuery[1] = query
+        selfPrevQuery[2] = utf8.lower(query)
+    end
+    query = selfPrevQuery[2]
     
     for cargoName, index in pairs(selfCargoTextBoxByIndex) do
         selfAmountByIndex[cargoName] = selfCargoTextBoxes[index].text
     end
     selfCargoTextBoxByIndex = {}
     
-    local selfMaxSpace = ship.maxCargoSpace
+    local selfMaxSpace = ship.maxCargoSpace or 0
 
     selfGoodSearchNames = {}
     
@@ -1625,16 +1538,14 @@ function TransferCrewGoods.selfCargoSearch(isUpdate)
     for i = 1, #selfGoodNames do
         if rowNumber == TransferCargoTweaksConfig.CargoRowsAmount then break end
         
-        local nameCapitalized
+        local nameLowercase
         local displayName = selfGoodNames[i]
-        if cargoCapitalizedCache[nameCapitalized] then
-            nameCapitalized = cargoCapitalizedCache[displayName]
-        else
-            cargoCapitalizedCache[displayName] = utf8.upper(displayName)
-            nameCapitalized = cargoCapitalizedCache[displayName]
+        if not cargoLowercaseCache[nameLowercase] then
+            cargoLowercaseCache[displayName] = utf8.lower(displayName)
         end
+        nameLowercase = cargoLowercaseCache[displayName]
         
-        if query == "" or utf8.find(utf8.upper(nameCapitalized), query) then
+        if query == "" or utf8.find(utf8.lower(nameLowercase), query, 1, true) then
             rowNumber = rowNumber + 1
         
             local bar = selfCargoBars[rowNumber]
