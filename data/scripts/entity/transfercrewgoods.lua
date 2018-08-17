@@ -61,8 +61,8 @@ local textboxIndexByButton = {}
 
 --MOD: TransferCargoTweaks
 package.path = package.path .. ";mods/TransferCargoTweaks/?.lua"
-local utf8 = require("scripts/lib/utf8")
-if not utf8 then
+local status, utf8 = pcall(require, "scripts/lib/utf8")
+if not status then
     print("[TCTweaks][ERROR]: Couldn't load utf8 library")
 end
 local status, TCTweaksConfig = pcall(require, 'config/TCTweaksConfig')
@@ -1230,7 +1230,12 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     end
 
     -- check distance
-    if sender:getNearestDistance(receiver) > 20 then
+    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer crew."%_t)
+            return
+        end
+    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CrewMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
@@ -1277,7 +1282,12 @@ function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther)
     end
 
     -- check distance
-    if sender:getNearestDistance(receiver) > 20 then
+    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer crew."%_t)
+            return
+        end
+    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CrewMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
@@ -1382,7 +1392,12 @@ function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, am
     end
 
     -- check distance
-    if sender:getNearestDistance(receiver) > 2 then
+    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer cargo."%_t)
+            return
+        end
+    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CargoMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
@@ -1428,7 +1443,12 @@ function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther)
     end
 
     -- check distance
-    if sender:getNearestDistance(receiver) > 2 then
+    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer cargo."%_t)
+            return
+        end
+    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CargoMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
@@ -1519,14 +1539,22 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
 
     local player = Player(callingPlayer)
     if not player then return end
+    
+    local entitySender = Entity(sender)
+    local entityReceiver = Entity(receiver)
 
-    if Entity(sender).factionIndex ~= callingPlayer and Entity(sender).factionIndex ~= player.allianceIndex then
+    if entitySender.factionIndex ~= callingPlayer and entitySender.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("Server"%_t, 1, "You don't own this craft."%_t)
         return
     end
 
     -- check distance
-    if Entity(sender):getNearestDistance(Entity(receiver)) > 2 then
+    if TCTweaksConfig.CheckIfDocked and (entitySender.isStation or entityReceiver.isStation) then
+        if (entitySender.isStation and not entitySender:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(entitySender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer fighters."%_t)
+            return
+        end
+    elseif entitySender:getNearestDistance(entityReceiver) > TCTweaksConfig.FightersMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
@@ -1589,13 +1617,21 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
     local player = Player(callingPlayer)
     if not player then return end
 
-    if Entity(sender).factionIndex ~= callingPlayer and Entity(sender).factionIndex ~= player.allianceIndex then
+    local entitySender = Entity(sender)
+    local entityReceiver = Entity(receiver)
+
+    if entitySender.factionIndex ~= callingPlayer and entitySender.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("Server"%_t, 1, "You don't own this craft."%_t)
         return
     end
 
     -- check distance
-    if Entity(sender):getNearestDistance(Entity(receiver)) > 2 then
+    if TCTweaksConfig.CheckIfDocked and (entitySender.isStation or entityReceiver.isStation) then
+        if (entitySender.isStation and not entitySender:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(entitySender)) then
+            player:sendChatMessage("Server"%_t, 1, "You must be docked to the station to transfer fighters."%_t)
+            return
+        end
+    elseif entitySender:getNearestDistance(entityReceiver) > TCTweaksConfig.FightersMaxTransferDistance then
         player:sendChatMessage("Server"%_t, 1, "You're too far away."%_t)
         return
     end
