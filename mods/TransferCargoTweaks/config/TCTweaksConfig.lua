@@ -1,9 +1,9 @@
 local config = {}
 config.author = 'Rinart73'
 config.name = 'Transfer Cargo Tweaks'
-config.homepage = "https://www.avorion.net/forum/index.php/topic,4263.msg22604.html"
+config.homepage = "https://www.avorion.net/forum/index.php/topic,4263"
 config.version = {
-    major = 1, minor = 3, patch = 0, -- 0.17.1 - 0.18.2
+    major = 1, minor = 4, patch = 0, -- 0.21.x
 }
 config.version.string = config.version.major..'.'..config.version.minor..'.'..config.version.patch
 
@@ -20,10 +20,10 @@ config.EnableCrewWorkforcePreview = true
 
 -- SERVER SETTINGS
 -- Allows to specify max distance for transferring fighters, cargo and crew
--- default = 2
-config.FightersMaxTransferDistance = 2
--- default = 2
-config.CargoMaxTransferDistance = 2
+-- default = 20
+config.FightersMaxTransferDistance = 20
+-- default = 20
+config.CargoMaxTransferDistance = 20
 -- default = 20
 config.CrewMaxTransferDistance = 20
 -- If enabled, when a ship transfers goods from/to a station, server will check if the ship is docked instead of checking the distance (usually this will allow to transfer from a higher distance)
