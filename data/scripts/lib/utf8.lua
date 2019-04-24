@@ -1,6 +1,6 @@
 --[[
 Author: Rinart73
-Version: 0.0.9
+Version: 0.1.0
 
 This UTF-8 lib was made specifically for Avorion to help modders and to show devs that we need native UTF-8 support in Lua.
 I tried to collect and construct the best implementations of functions with a goal of achieving max performance while keeping input and output relatively close to the native Lua 5.2/5.3 functions.
@@ -40,8 +40,6 @@ Thanks to:
 * https://stackoverflow.com/a/29217368/3768314
 
 ]]
-
-package.path = package.path .. ";mods/TransferCargoTweaks/scripts/lib/?.lua"
 
 local utf8 = {}
 
@@ -224,9 +222,12 @@ function utf8.lower(s, asTable) -- string.lower (s)
         local c, b
         if lowerCase ~= false then
             lowerCase = false
-            c, b = pcall(require, 'utf8-lower')
+            c, b = pcall(include, 'utf8-lower')
         end
-        if not c then return not asTable and lower(s) or utf8.table(lower(s)) end
+        if not c then
+            eprint("[ERROR][TransferCargoTweaks] utf8 library failed to load 'upper to lower' file")
+            return not asTable and lower(s) or utf8.table(lower(s))
+        end
         lowerCase = b
     end
     local r = {}
@@ -267,9 +268,12 @@ function utf8.upper(s, asTable) -- string.upper (s)
             local c, b
             if lowerCase ~= false then
                 lowerCase = false
-                c, b = pcall(require, 'utf8-lower')
+                c, b = pcall(include, 'utf8-lower')
             end
-            if not c then return not asTable and upper(s) or utf8.table(upper(s)) end
+            if not c then
+                eprint("[ERROR][TransferCargoTweaks] utf8 library failed to load 'upper to lower' file")
+                return not asTable and upper(s) or utf8.table(upper(s))
+            end
             lowerCase = b
         end
         upperCase = {}
@@ -368,9 +372,11 @@ function utf8.compare(a, b, sensitive)
     
     if not alphabetSort then
         alphabetSort = {}
-        local c, b = pcall(require, 'utf8-compare')
+        local c, b = pcall(include, 'utf8-compare')
         if c then
             if b[lang] then alphabetSort = b[lang] end
+        else
+            eprint("[ERROR][TransferCargoTweaks] utf8 library failed to load 'alphabet sorting' file")
         end
     end
 

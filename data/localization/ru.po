@@ -1,0 +1,27 @@
+# ========== mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua ==========
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgid "Level %u"
+msgstr "Уровень %u"
+
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgid "Untrained"
+msgstr "Необученный"
+
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgctxt "plural"
+msgid "Untrained"
+msgstr "Необученные"
+
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgid "You must be docked to the station to transfer crew."
+msgstr "Вы должны пристыковаться к станции, чтобы перенести экипаж."
+
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgid "You must be docked to the station to transfer cargo."
+msgstr "Вы должны пристыковаться к станции, чтобы перенести грузы."
+
+#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+msgid "You must be docked to the station to transfer fighters."
+msgstr "Вы должны пристыковаться к станции, чтобы перенести истребители."
+
+

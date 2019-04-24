@@ -1,79 +1,13 @@
-package.path = package.path .. ";data/scripts/lib/?.lua"
-
-require("utility")
-require("stringutility")
-require ("tooltipmaker")
-require ("callable")
-
-local playerTotalCrewBar;
-local selfTotalCrewBar;
-
-local playerCrewIcons = {}
-local playerCrewBars = {}
-local playerCrewButtons = {}
-local playerCrewTextBoxes = {}
-local selfCrewIcons = {}
-local selfCrewBars = {}
-local selfCrewButtons = {}
-local selfCrewTextBoxes = {}
-
-local playerCrewTextBoxByIndex = {}
-local selfCrewTextBoxByIndex = {}
-
-local playerTransferAllCrewButton = {}
-local selfTransferAllCrewButton = {}
-
-local playerTotalCargoBar;
-local selfTotalCargoBar;
-
-local playerCargoIcons = {}
-local playerCargoBars = {}
-local playerCargoButtons = {}
-local playerCargoTextBoxes = {}
-local selfCargoIcons = {}
-local selfCargoBars = {}
-local selfCargoButtons = {}
-local selfCargoTextBoxes = {}
-
---local playerCargoName = {} --MOD: TransferCargoTweaks
-local playerCargoTextBoxByIndex = {}
---local selfCargoName = {} --MOD: TransferCargoTweaks
-local selfCargoTextBoxByIndex = {}
-
-local playerTransferAllCargoButton = {}
-local selfTransferAllCargoButton = {}
-
-local playerFighterLabels = {}
-local selfFighterLabels = {}
-local playerFighterSelections = {}
-local selfFighterSelections = {}
-local isPlayerShipBySelection = {}
-local squadIndexBySelection = {}
-
-local playerTransferAllFightersButton = {}
-local selfTransferAllFightersButton = {}
-
-local crewmenByButton = {}
-local crewmenByTextBox = {}
-local cargosByButton = {}
-local cargosByTextBox = {}
-
-local textboxIndexByButton = {}
-
---MOD: TransferCargoTweaks
-package.path = package.path .. ";mods/TransferCargoTweaks/?.lua"
-local status, utf8 = pcall(require, "scripts/lib/utf8")
+local status, utf8 = pcall(include, "data/scripts/lib/utf8")
 if not status then
-    eprint("[ERROR][TCTweaks]: Couldn't load utf8 library")
+    eprint("[ERROR][TransferCargoTweaks]: Couldn't load utf8 library")
+    return -- can't work without it
 end
-local status, TCTweaksConfig = pcall(require, 'config/TCTweaksConfig')
+local status, TransferCargoTweaksConfig = pcall(include, 'data/config/TransferCargoTweaksConfig')
 if not status then
-    eprint("[ERROR][TCTweaks]: Couldn't load config, using default settings")
-    TCTweaksConfig = { CargoRowsAmount = 100 }
+    eprint("[ERROR][TransferCargoTweaks]: Couldn't load config, using default settings")
+    TransferCargoTweaksConfig = { CargoRowsAmount = 100, FightersMaxTransferDistance = 20, CargoMaxTransferDistance = 20, CrewMaxTransferDistance = 20 }
 end
-
--- register mod for localization
-if i18n then i18n.registerMod("TransferCargoTweaks") end
 
 local favoritesFile = {} -- file with all stations of the server
 local stationFavorites = { {}, {} } -- current station only
@@ -135,14 +69,15 @@ local selfCargoPrevCount = 0
 local playerAmountByIndex = {}
 local selfAmountByIndex = {}
 
-local playerFavoritesEnabled = TCTweaksConfig.EnableFavorites and TCTweaksConfig.ToggleFavoritesByDefault
-local selfFavoritesEnabled = TCTweaksConfig.EnableFavorites and TCTweaksConfig.ToggleFavoritesByDefault
+local playerFavoritesEnabled = TransferCargoTweaksConfig.EnableFavorites and TransferCargoTweaksConfig.ToggleFavoritesByDefault
+local selfFavoritesEnabled = TransferCargoTweaksConfig.EnableFavorites and TransferCargoTweaksConfig.ToggleFavoritesByDefault
 
 local playerLastHoveredRow
 local selfLastHoveredRow
 
 local tabbedWindow
 local cargoTabIndex
+
 
 local function playerSortGoodsFavorites(a, b)
     -- and here is where performance will probably die
@@ -217,52 +152,9 @@ local function saveFavorites(tbl)
     file:close()
     return true
 end
---MOD
 
--- Don't remove or alter the following comment, it tells the game the namespace this script lives in. If you remove it, the script will break.
--- namespace TransferCrewGoods
-TransferCrewGoods = {}
+-- OVERRIDDEN FUNCTIONS
 
--- if this function returns false, the script will not be listed in the interaction window,
--- even though its UI may be registered
-function TransferCrewGoods.interactionPossible(playerIndex, option)
-
-    local player = Player()
-    local ship = Entity()
-    local other = player.craft
-
-    if ship.index == other.index then
-        return false
-    end
-
-    -- interaction with drones does not work
-    if ship.isDrone or other.isDrone then
-        return false
-    end
-
-    local shipFaction = Faction()
-    if not shipFaction then return false end
-
-    if shipFaction.isPlayer then
-        if shipFaction.index ~= playerIndex then
-            return false
-        end
-    elseif shipFaction.isAlliance then
-        if player.allianceIndex ~= shipFaction.index then
-            return false
-        end
-    else
-        return false
-    end
-
-    return true, ""
-end
-
---function initialize()
---
---end
-
--- create all required UI elements for the client side
 function TransferCrewGoods.initUI()
 
     local res = getResolution()
@@ -276,13 +168,10 @@ function TransferCrewGoods.initUI()
     window.showCloseButton = 1
     window.moveable = 1
 
-    tabbedWindow = window:createTabbedWindow(Rect(vec2(10, 10), size - 10)) --local tabbedWindow = window:createTabbedWindow(Rect(vec2(10, 10), size - 10)) --MOD: TransferCargoTweaks
+    tabbedWindow = window:createTabbedWindow(Rect(vec2(10, 10), size - 10))
     local crewTab = tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Exchange crew"%_t)
 
     local vSplit = UIVerticalSplitter(Rect(crewTab.size), 10, 0, 0.5)
-
---    crewTab:createFrame(vSplit.left);
---    crewTab:createFrame(vSplit.right);
 
     -- have to use "left" twice here since the coordinates are relative and the UI would be displaced to the right otherwise
     local leftLister = UIVerticalLister(vSplit.left, 10, 10)
@@ -295,11 +184,8 @@ function TransferCrewGoods.initUI()
     leftLister.marginLeft = 35
     rightLister.marginRight = 60
 
-    --MOD: TransferCargoTweaks
-    --local leftFrame = crewTab:createScrollFrame(vSplit.left)
-    --local rightFrame = crewTab:createScrollFrame(vSplit.right)
     local leftFrame, rightFrame
-    if not TCTweaksConfig.EnableCrewWorkforcePreview then
+    if not TransferCargoTweaksConfig.EnableCrewWorkforcePreview then
         leftFrame = crewTab:createScrollFrame(vSplit.left)
         rightFrame = crewTab:createScrollFrame(vSplit.right)
     else
@@ -327,7 +213,6 @@ function TransferCrewGoods.initUI()
             end
         end
     end
-    --MOD
 
     playerTransferAllCrewButton = leftFrame:createButton(Rect(), "Transfer All >>"%_t, "onPlayerTransferAllCrewPressed")
     leftLister:placeElementCenter(playerTransferAllCrewButton)
@@ -342,7 +227,6 @@ function TransferCrewGoods.initUI()
     rightLister:placeElementCenter(selfTotalCrewBar)
 
     for i = 1, CrewProfessionType.Number * 4 do
-
         local iconRect = Rect(leftLister.inner.topLeft - vec2(30, 0), leftLister.inner.topLeft + vec2(-5, 25))
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 25))
         local vsplit = UIVerticalSplitter(rect, 10, 0, 0.85)
@@ -358,17 +242,15 @@ function TransferCrewGoods.initUI()
         box.text = "1"
         box.clearOnClick = true
 
-        --MOD: TransferCargoTweaks
         local overlayName = leftFrame:createLabel(Rect(vsplit2.left.lower + vec2(0, 6), vsplit2.left.upper), "", 10)
         overlayName.centered = true
         overlayName.wordBreak = false
         playerCrewLabels[i] = overlayName
 
-        playerCrewIcons[i] = icon --table.insert(playerCrewIcons, icon)
-        playerCrewButtons[i] = button --table.insert(playerCrewButtons, button)
-        playerCrewBars[i] = bar --table.insert(playerCrewBars, bar)
-        playerCrewTextBoxes[i] = box --table.insert(playerCrewTextBoxes, box)
-        --MOD
+        playerCrewIcons[i] = icon
+        playerCrewButtons[i] = button
+        playerCrewBars[i] = bar
+        playerCrewTextBoxes[i] = box
         crewmenByButton[button.index] = i
         crewmenByTextBox[box.index] = i
         textboxIndexByButton[button.index] = box.index
@@ -389,24 +271,22 @@ function TransferCrewGoods.initUI()
         box.text = "1"
         box.clearOnClick = true
 
-        --MOD: TransferCargoTweaks
         local overlayName = rightFrame:createLabel(Rect(vsplit2.right.lower + vec2(0, 6), vsplit2.right.upper), "", 10)
         overlayName.centered = true
         overlayName.wordBreak = false
         selfCrewLabels[i] = overlayName
 
-        selfCrewIcons[i] = icon --table.insert(selfCrewIcons, icon)
-        selfCrewButtons[i] = button --table.insert(selfCrewButtons, button)
-        selfCrewBars[i] = bar --table.insert(selfCrewBars, bar)
-        selfCrewTextBoxes[i] = box --table.insert(selfCrewTextBoxes, box)
-        --MOD
+        selfCrewIcons[i] = icon
+        selfCrewButtons[i] = button
+        selfCrewBars[i] = bar
+        selfCrewTextBoxes[i] = box
         crewmenByButton[button.index] = i
         crewmenByTextBox[box.index] = i
         textboxIndexByButton[button.index] = box.index
     end
 
     local cargoTab = tabbedWindow:createTab("Cargo"%_t, "data/textures/icons/trade.png", "Exchange cargo"%_t)
-    cargoTabIndex = cargoTab.index --MOD: TransferCargoTweaks
+    cargoTabIndex = cargoTab.index
 
     -- have to use "left" twice here since the coordinates are relative and the UI would be displaced to the right otherwise
     local leftLister = UIVerticalLister(vSplit.left, 10, 10)
@@ -422,13 +302,7 @@ function TransferCrewGoods.initUI()
     local leftFrame = cargoTab:createScrollFrame(vSplit.left)
     local rightFrame = cargoTab:createScrollFrame(vSplit.right)
 
-    --MOD: TransferCargoTweaks
-    --playerTransferAllCargoButton = leftFrame:createButton(Rect(), "Transfer All >>", "onPlayerTransferAllCargoPressed")
-    --leftLister:placeElementCenter(playerTransferAllCargoButton)
-    --selfTransferAllCargoButton = rightFrame:createButton(Rect(), "<< Transfer All", "onSelfTransferAllCargoPressed")
-    --rightLister:placeElementCenter(selfTransferAllCargoButton)
-
-    if TCTweaksConfig.EnableFavorites then
+    if TransferCargoTweaksConfig.EnableFavorites then
         playerTransferAllCargoButton = leftFrame:createButton(Rect(0, 10, leftFrame.width - 110, 45), "/* Goods */Transfer All >>"%_t, "onPlayerTransferAllCargoPressed")
         selfTransferAllCargoButton = rightFrame:createButton(Rect(0, 10, rightFrame.width - 110, 45), "/* Goods */<< Transfer All"%_t, "onSelfTransferAllCargoPressed")
     else
@@ -438,16 +312,16 @@ function TransferCrewGoods.initUI()
     leftLister:placeElementRight(playerTransferAllCargoButton)
     rightLister:placeElementLeft(selfTransferAllCargoButton)
 
-    playerTotalCargoBar = leftFrame:createNumbersBar(Rect(0, 0, leftFrame.width - 40, 25)) --playerTotalCargoBar = leftFrame:createNumbersBar(Rect())
-    leftLister:placeElementRight(playerTotalCargoBar) --leftLister:placeElementCenter(playerTotalCargoBar)
+    playerTotalCargoBar = leftFrame:createNumbersBar(Rect(0, 0, leftFrame.width - 40, 25))
+    leftLister:placeElementRight(playerTotalCargoBar)
 
-    selfTotalCargoBar = rightFrame:createNumbersBar(Rect(0, 0, rightFrame.width - 40, 25)) --selfTotalCargoBar = rightFrame:createNumbersBar(Rect())
-    rightLister:placeElementLeft(selfTotalCargoBar) --rightLister:placeElementCenter(selfTotalCargoBar)
+    selfTotalCargoBar = rightFrame:createNumbersBar(Rect(0, 0, rightFrame.width - 40, 25))
+    rightLister:placeElementLeft(selfTotalCargoBar)
 
     playerToggleSearchBtn = leftFrame:createButton(Rect(10, 10, 40, 45), "", "onPlayerToggleCargoSearchPressed")
-    playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+    playerToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
     selfToggleSearchBtn = rightFrame:createButton(Rect(rightFrame.width-60, 10, rightFrame.width-30, 45), "", "onSelfToggleCargoSearchPressed")
-    selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+    selfToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
 
     playerCargoSearchBox = leftFrame:createTextBox(Rect(12, playerTransferAllCargoButton.height+22, leftFrame.width-33, playerTransferAllCargoButton.height+selfTotalCargoBar.height+18), "playerCargoSearch")
     playerCargoSearchBox.backgroundText = "Search"%_t
@@ -456,74 +330,62 @@ function TransferCrewGoods.initUI()
     selfCargoSearchBox.backgroundText = "Search"%_t
     selfCargoSearchBox.visible = false
 
-    if TCTweaksConfig.EnableFavorites then
+    if TransferCargoTweaksConfig.EnableFavorites then
         playerToggleFavoritesBtn = leftFrame:createButton(Rect(45, 10, 75, 45), "", "onPlayerToggleFavoritesPressed")
         selfToggleFavoritesBtn = rightFrame:createButton(Rect(rightFrame.width-95, 10, rightFrame.width-65, 45), "", "onSelfToggleFavoritesPressed")
-        if TCTweaksConfig.ToggleFavoritesByDefault then
-            playerToggleFavoritesBtn.icon = "mods/TransferCargoTweaks/textures/icons/favorites-enabled.png"
-            selfToggleFavoritesBtn.icon = "mods/TransferCargoTweaks/textures/icons/favorites-enabled.png"
+        if TransferCargoTweaksConfig.ToggleFavoritesByDefault then
+            playerToggleFavoritesBtn.icon = "data/textures/icons/transfercargotweaks/favorites-enabled.png"
+            selfToggleFavoritesBtn.icon = "data/textures/icons/transfercargotweaks/favorites-enabled.png"
         else
-            playerToggleFavoritesBtn.icon = "mods/TransferCargoTweaks/textures/icons/favorites.png"
-            selfToggleFavoritesBtn.icon = "mods/TransferCargoTweaks/textures/icons/favorites.png"
+            playerToggleFavoritesBtn.icon = "data/textures/icons/transfercargotweaks/favorites.png"
+            selfToggleFavoritesBtn.icon = "data/textures/icons/transfercargotweaks/favorites.png"
         end
     end
-    --MOD
 
-    for i = 1, TCTweaksConfig.CargoRowsAmount do --for i = 1, 100 do --MOD: TransferCargoTweaks
+    for i = 1, TransferCargoTweaksConfig.CargoRowsAmount do
 
         local iconRect = Rect(leftLister.inner.topLeft - vec2(30, 0), leftLister.inner.topLeft + vec2(-5, 25))
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 25))
-        --MOD: TransferCargoTweaks
-        --local vsplit = UIVerticalSplitter(rect, 10, 0, 0.85)
-        --local vsplit2 = UIVerticalSplitter(vsplit.left, 10, 0, 0.75)
         local vsplit, vsplit2
-        if TCTweaksConfig.EnableFavorites then
+        if TransferCargoTweaksConfig.EnableFavorites then
             vsplit = UIVerticalSplitter(rect, 10, 0, 0.87)
             vsplit2 = UIVerticalSplitter(vsplit.left, 10, 0, 0.77)
         else
             vsplit = UIVerticalSplitter(rect, 10, 0, 0.85)
             vsplit2 = UIVerticalSplitter(vsplit.left, 10, 0, 0.75)
         end
-        --MOD
 
         local icon = leftFrame:createPicture(iconRect, "")
         icon.isIcon = 1
         local button = leftFrame:createButton(vsplit.right, ">>", "onPlayerTransferCargoPressed")
-        --MOD: TransferCargoTweaks
-        --local bar = leftFrame:createStatisticsBar(vsplit2.left, ColorInt(0xa0a0a0))
         local bar
-        if TCTweaksConfig.EnableFavorites then
+        if TransferCargoTweaksConfig.EnableFavorites then
             bar = leftFrame:createStatisticsBar(Rect(vsplit2.left.lower + vec2(15, 0), vsplit2.left.upper), ColorInt(0x808080))
         else
             bar = leftFrame:createStatisticsBar(vsplit2.left, ColorInt(0x808080))
         end
-        --MOD
         local box = leftFrame:createTextBox(vsplit2.right, "onPlayerTransferCargoTextEntered")
         button.textSize = 16
         box.allowedCharacters = "0123456789"
         box.clearOnClick = true
 
-        --MOD: TransferCargoTweaks
-        playerCargoIcons[i] = icon --table.insert(playerCargoIcons, icon)
-        playerCargoButtons[i] = button --table.insert(playerCargoButtons, button)
-        playerCargoBars[i] = bar --table.insert(playerCargoBars, bar)
-        playerCargoTextBoxes[i] = box --table.insert(playerCargoTextBoxes, box)
-        --table.insert(playerCargoName, "")
+        playerCargoIcons[i] = icon
+        playerCargoButtons[i] = button
+        playerCargoBars[i] = bar
+        playerCargoTextBoxes[i] = box
 
         local overlayName
 
-        if TCTweaksConfig.EnableFavorites then
-            --local favoriteBtn = leftFrame:createPicture(Rect(vsplit2.left.topLeft + vec2(5, 2), vsplit2.left.topLeft + vec2(15, 12)), '')
+        if TransferCargoTweaksConfig.EnableFavorites then
             local favoriteBtn = leftFrame:createPicture(Rect(vsplit2.left.topLeft + vec2(0, 2), vsplit2.left.topLeft + vec2(10, 12)), '')
             favoriteBtn.flipped = true
-            favoriteBtn.picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            favoriteBtn.picture = "data/textures/icons/transfercargotweaks/empty.png"
             playerFavoriteButtons[i] = favoriteBtn
             favoriteBtn.visible = false
 
-            --local trashBtn = leftFrame:createPicture(Rect(vsplit2.left.topLeft + vec2(5, 18), vsplit2.left.topLeft + vec2(15, 28)), '')
             local trashBtn = leftFrame:createPicture(Rect(vsplit2.left.topLeft + vec2(0, 18), vsplit2.left.topLeft + vec2(10, 28)), '')
             trashBtn.flipped = true
-            trashBtn.picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            trashBtn.picture = "data/textures/icons/transfercargotweaks/empty.png"
             playerTrashButtons[i] = trashBtn
             trashBtn.visible = false
 
@@ -541,7 +403,6 @@ function TransferCrewGoods.initUI()
         bar.visible = false
         box.visible = false
         overlayName.visible = false
-        --MOD
         cargosByButton[button.index] = i
         cargosByTextBox[box.index] = i
         textboxIndexByButton[button.index] = box.index
@@ -549,57 +410,46 @@ function TransferCrewGoods.initUI()
 
         local iconRect = Rect(rightLister.inner.topRight - vec2(-5, 0), rightLister.inner.topRight + vec2(30, 25))
         local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 25))
-        --MOD: TransferCargoTweaks
-        --local vsplit = UIVerticalSplitter(rect, 10, 0, 0.15)
-        --local vsplit2 = UIVerticalSplitter(vsplit.right, 10, 0, 0.25)
         local vsplit, vsplit2
-        if TCTweaksConfig.EnableFavorites then
+        if TransferCargoTweaksConfig.EnableFavorites then
             vsplit = UIVerticalSplitter(rect, 10, 0, 0.13)
             vsplit2 = UIVerticalSplitter(vsplit.right, 10, 0, 0.23)
         else
             vsplit = UIVerticalSplitter(rect, 10, 0, 0.15)
             vsplit2 = UIVerticalSplitter(vsplit.right, 10, 0, 0.25)
         end
-        --MOD
 
         local icon = rightFrame:createPicture(iconRect, "")
         icon.isIcon = 1
         local button = rightFrame:createButton(vsplit.left, "<<", "onSelfTransferCargoPressed")
-        --MOD: TransferCargoTweaks
-        --local bar = rightFrame:createStatisticsBar(vsplit2.right, ColorInt(0xa0a0a0))
         local bar
-        if TCTweaksConfig.EnableFavorites then
+        if TransferCargoTweaksConfig.EnableFavorites then
             bar = rightFrame:createStatisticsBar(Rect(vsplit2.right.lower, vsplit2.right.upper - vec2(15, 0)), ColorInt(0x808080))
         else
             bar = rightFrame:createStatisticsBar(vsplit2.right, ColorInt(0x808080))
         end
-        --MOD
         local box = rightFrame:createTextBox(vsplit2.left, "onSelfTransferCargoTextEntered")
         button.textSize = 16
         box.allowedCharacters = "0123456789"
         box.clearOnClick = true
 
-        --MOD: TransferCargoTweaks
-        selfCargoIcons[i] = icon --table.insert(selfCargoIcons, icon)
-        selfCargoButtons[i] = button --table.insert(selfCargoButtons, button)
-        selfCargoBars[i] = bar --table.insert(selfCargoBars, bar)
-        selfCargoTextBoxes[i] = box --table.insert(selfCargoTextBoxes, box)
-        --table.insert(selfCargoName, "")
+        selfCargoIcons[i] = icon
+        selfCargoButtons[i] = button
+        selfCargoBars[i] = bar
+        selfCargoTextBoxes[i] = box
 
         local overlayName
 
-        if TCTweaksConfig.EnableFavorites then
-            --local favoriteBtn = rightFrame:createPicture(Rect(vsplit2.right.topRight + vec2(-15, 2), vsplit2.right.topRight + vec2(-5, 12)), '')
+        if TransferCargoTweaksConfig.EnableFavorites then
             local favoriteBtn = rightFrame:createPicture(Rect(vsplit2.right.topRight + vec2(-10, 2), vsplit2.right.topRight + vec2(0, 12)), '')
             favoriteBtn.flipped = true
-            favoriteBtn.picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            favoriteBtn.picture = "data/textures/icons/transfercargotweaks/empty.png"
             selfFavoriteButtons[i] = favoriteBtn
             favoriteBtn.visible = false
 
-            --local trashBtn = rightFrame:createPicture(Rect(vsplit2.right.topRight + vec2(-15, 18), vsplit2.right.topRight + vec2(-5, 28)), '')
             local trashBtn = rightFrame:createPicture(Rect(vsplit2.right.topRight + vec2(-10, 18), vsplit2.right.topRight + vec2(0, 28)), '')
             trashBtn.flipped = true
-            trashBtn.picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            trashBtn.picture = "data/textures/icons/transfercargotweaks/empty.png"
             selfTrashButtons[i] = trashBtn
             trashBtn.visible = false
 
@@ -617,7 +467,6 @@ function TransferCrewGoods.initUI()
         bar.visible = false
         box.visible = false
         overlayName.visible = false
-        --MOD
 
         cargosByButton[button.index] = i
         cargosByTextBox[box.index] = i
@@ -643,7 +492,7 @@ function TransferCrewGoods.initUI()
         -- left side (player)
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 18))
         local label = fightersTab:createLabel(rect, "", 16)
-        playerFighterLabels[i] = label --table.insert(playerFighterLabels, label) --MOD: TransferCargoTweaks
+        playerFighterLabels[i] = label
 
         local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 35))
         rect.upper = vec2(rect.lower.x + 376, rect.upper.y)
@@ -655,14 +504,14 @@ function TransferCrewGoods.initUI()
         selection.onClickedFunction = "onFighterClicked"
         selection.padding = 4
 
-        playerFighterSelections[i] = selection --table.insert(playerFighterSelections, selection) --MOD: TransferCargoTweaks
+        playerFighterSelections[i] = selection
         isPlayerShipBySelection[selection.index] = true
         squadIndexBySelection[selection.index] = i - 1
 
         -- right side (self)
         local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 18))
         local label = fightersTab:createLabel(rect, "", 16)
-        selfFighterLabels[i] = label --table.insert(selfFighterLabels, label) --MOD: TransferCargoTweaks
+        selfFighterLabels[i] = label
 
         local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 35))
         rect.upper = vec2(rect.lower.x + 376, rect.upper.y)
@@ -674,43 +523,10 @@ function TransferCrewGoods.initUI()
         selection.onClickedFunction = "onFighterClicked"
         selection.padding = 4
 
-        selfFighterSelections[i] = selection --table.insert(selfFighterSelections, selection) --MOD: TransferCargoTweaks
+        selfFighterSelections[i] = selection
         isPlayerShipBySelection[selection.index] = false
         squadIndexBySelection[selection.index] = i - 1
     end
-end
-
-
-function TransferCrewGoods.getSortedCrewmen(entity)
-
-    function compareCrewmen(pa, pb)
-        local a = pa.crewman
-        local b = pb.crewman
-
-        if a.profession.value == b.profession.value then
-            if a.specialist == b.specialist then
-                return a.level < b.level
-            else
-                return (a.specialist and 1 or 0) < (b.specialist and 1 or 0)
-            end
-        else
-            return a.profession.value < b.profession.value
-        end
-    end
-
-
-    local sortedMembers = {}
-
-    local crew = entity.crew
-    if crew then
-        for crewman, num in pairs(crew:getMembers()) do
-            table.insert(sortedMembers, {crewman = crewman, num = num})
-        end
-    end
-
-    table.sort(sortedMembers, compareCrewmen)
-
-    return sortedMembers
 end
 
 function TransferCrewGoods.updateData()
@@ -724,15 +540,6 @@ function TransferCrewGoods.updateData()
     playerTotalCrewBar:setRange(0, playerShip.maxCrewSize)
     selfTotalCrewBar:setRange(0, ship.maxCrewSize)
 
-    --MOD: TransferCargoTweaks
-    --[[for _, icon in pairs(playerCrewIcons) do icon.visible = false end
-    for _, icon in pairs(selfCrewIcons) do icon.visible = false end
-    for _, bar in pairs(playerCrewBars) do bar.visible = false end
-    for _, bar in pairs(selfCrewBars) do bar.visible = false end
-    for _, button in pairs(playerCrewButtons) do button.visible = false end
-    for _, button in pairs(selfCrewButtons) do button.visible = false end
-    for _, box in pairs(playerCrewTextBoxes) do box.visible = false end
-    for _, box in pairs(selfCrewTextBoxes) do box.visible = false end]]
     for i = 1, #playerCrewIcons do
         playerCrewIcons[i].visible = false
         selfCrewIcons[i].visible = false
@@ -745,7 +552,6 @@ function TransferCrewGoods.updateData()
         playerCrewLabels[i].visible = false
         selfCrewLabels[i].visible = false
     end
-    --MOD
 
     -- restore textbox values
     local amountByIndex = {}
@@ -757,7 +563,6 @@ function TransferCrewGoods.updateData()
 
     local i = 1
     for _, p in pairs(TransferCrewGoods.getSortedCrewmen(playerShip)) do
-
         local crewman = p.crewman
         local num = p.num
 
@@ -799,7 +604,6 @@ function TransferCrewGoods.updateData()
             end
         end
 
-        --MOD: TransferCargoTweaks
         local overlayName = caption
         if p.crewman.specialist then
             overlayName = string.format("%s (".."Level %u"%_t..")", overlayName, p.crewman.level)
@@ -808,18 +612,8 @@ function TransferCrewGoods.updateData()
         else
             overlayName = string.format("%s (%s)", overlayName, "Untrained /* plural */"%_t)
         end
-        --[[if p.crewman.specialist then
-            overlayName = string.format("%s Level %u"%_t, num == 1 and crewman.profession.name or crewman.profession.plural, p.crewman.level)
-        else
-            if num == 1 then
-                overlayName = string.format("Untrained %s"%_t, crewman.profession.name)
-            else
-                overlayName = string.format("Untrained %s /* plural */"%_t, crewman.profession.plural)
-            end
-        end]]
         playerCrewLabels[i].caption = overlayName
         playerCrewLabels[i].visible = true
-        --MOD
 
         i = i + 1
     end
@@ -834,7 +628,6 @@ function TransferCrewGoods.updateData()
 
     local i = 1
     for _, p in pairs(TransferCrewGoods.getSortedCrewmen(Entity())) do
-
         local crewman = p.crewman
         local num = p.num
 
@@ -877,7 +670,6 @@ function TransferCrewGoods.updateData()
             end
         end
 
-        --MOD: TransferCargoTweaks
         local overlayName = caption
         if p.crewman.specialist then
             overlayName = string.format("%s (".."Level %u"%_t..")", overlayName, p.crewman.level)
@@ -886,25 +678,14 @@ function TransferCrewGoods.updateData()
         else
             overlayName = string.format("%s (%s)", overlayName, "Untrained /* plural */"%_t)
         end
-        --[[if p.crewman.specialist then
-            overlayName = string.format("%s Level %u"%_t, num == 1 and crewman.profession.name or crewman.profession.plural, p.crewman.level)
-        else
-            if num == 1 then
-                overlayName = string.format("Untrained %s"%_t, crewman.profession.name)
-            else
-                overlayName = string.format("Untrained %s /* plural */"%_t, crewman.profession.plural)
-            end
-        end]]
         selfCrewLabels[i].caption = overlayName
         selfCrewLabels[i].visible = true
-        --MOD
 
         i = i + 1
     end
 
-    --MOD: TransferCargoTweaks
     -- update workforce labels
-    if TCTweaksConfig.EnableCrewWorkforcePreview then
+    if TransferCargoTweaksConfig.EnableCrewWorkforcePreview then
         local playerMinWorkforce = {}
         for k,v in pairs(playerShip.minCrew:getWorkforce()) do
             playerMinWorkforce[k.value] = v
@@ -937,7 +718,6 @@ function TransferCrewGoods.updateData()
             selfCrewWorkforceLabels[profId].color = selfWorkforce[profId] < selfMinWorkforce[profId] and ColorInt(0xffff2626) or ColorInt(0xffe0e0e0)
         end
     end
-    --MOD
 
     -- update cargo info
     playerTotalCargoBar:clear()
@@ -945,9 +725,6 @@ function TransferCrewGoods.updateData()
 
     playerTotalCargoBar:setRange(0, playerShip.maxCargoSpace)
     selfTotalCargoBar:setRange(0, ship.maxCargoSpace)
-
-    --MOD: TransferCargoTweaks
-    -- removed lines from 498 to 509
 
     -- sort goods by localized name
     playerGoodNames = {}
@@ -961,8 +738,6 @@ function TransferCrewGoods.updateData()
     for i = 1, (playerShip.numCargos or 0) do
         local good, amount = playerShip:getCargo(i - 1)
         playerCargoList[i] = { good = good, amount = amount }
-        --playerGoodNames[i] = good.displayName
-        --playerGoodIndexesByName[good.displayName] = i
         local displayName = good:displayName(1)
         playerGoodNames[i] = displayName
         playerGoodIndexesByName[displayName] = i
@@ -974,8 +749,6 @@ function TransferCrewGoods.updateData()
     for i = 1, (ship.numCargos or 0) do
         local good, amount = ship:getCargo(i - 1)
         selfCargoList[i] = { good = good, amount = amount }
-        --selfGoodNames[i] = good.displayName
-        --selfGoodIndexesByName[good.displayName] = i
         local displayName = good:displayName(1)
         selfGoodNames[i] = displayName
         selfGoodIndexesByName[displayName] = i
@@ -987,22 +760,13 @@ function TransferCrewGoods.updateData()
     playerSortGoods()
     selfSortGoods()
 
-    -- removed lines from 511 to 586
-    --MOD
-
     -- update fighter info
-    --MOD: TransferCargoTweaks
-    --[[for _, label in pairs(playerFighterLabels) do label:hide() end
-    for _, label in pairs(selfFighterLabels) do label:hide() end
-    for _, selection in pairs(playerFighterSelections) do selection:hide() end
-    for _, selection in pairs(selfFighterSelections) do selection:hide() end]]
     for i = 1, #playerFighterLabels do
         playerFighterLabels[i].visible = false
         selfFighterLabels[i].visible = false
         playerFighterSelections[i].visible = false
         selfFighterSelections[i].visible = false
     end
-    --MOD
 
     -- left side (player)
     local hangar = Hangar(playerShip.index)
@@ -1067,25 +831,6 @@ function TransferCrewGoods.updateData()
     end
 end
 
-function TransferCrewGoods.clampNumberString(string, max)
-    if string == "" then return "" end
-
-    local num = tonumber(string)
-    if not num then return "" end
-
-    if num > max then num = max end
-
-    return tostring(num)
-end
-
-function TransferCrewGoods.onPlayerTransferAllCrewPressed(button)
-    invokeServerFunction("transferAllCrew", Player().craftIndex, false)
-end
-
-function TransferCrewGoods.onSelfTransferAllCrewPressed(button)
-    invokeServerFunction("transferAllCrew", Player().craftIndex, true)
-end
-
 function TransferCrewGoods.onPlayerTransferCrewPressed(button)
     -- transfer crew from player ship to self
 
@@ -1101,7 +846,6 @@ function TransferCrewGoods.onPlayerTransferCrewPressed(button)
     if not box then return end
 
     local amount = tonumber(box.text) or 0
-    --MOD: TransferCargoTweaks
     local keyboard = Keyboard()
     if keyboard:keyPressed(KeyboardKey.LControl) or keyboard:keyPressed(KeyboardKey.RControl) then
         amount = 5
@@ -1110,7 +854,6 @@ function TransferCrewGoods.onPlayerTransferCrewPressed(button)
     elseif keyboard:keyPressed(KeyboardKey.LAlt) or keyboard:keyPressed(KeyboardKey.RAlt) then
         amount = 50
     end
-    --MOD
     if amount == 0 then return end
 
     invokeServerFunction("transferCrew", crewmanIndex, Player().craftIndex, false, amount)
@@ -1131,7 +874,6 @@ function TransferCrewGoods.onSelfTransferCrewPressed(button)
     if not box then return end
 
     local amount = tonumber(box.text) or 0
-    --MOD: TransferCargoTweaks
     local keyboard = Keyboard()
     if keyboard:keyPressed(KeyboardKey.LControl) or keyboard:keyPressed(KeyboardKey.RControl) then
         amount = 5
@@ -1140,67 +882,9 @@ function TransferCrewGoods.onSelfTransferCrewPressed(button)
     elseif keyboard:keyPressed(KeyboardKey.LAlt) or keyboard:keyPressed(KeyboardKey.RAlt) then
         amount = 50
     end
-    --MOD
     if amount == 0 then return end
 
     invokeServerFunction("transferCrew", crewmanIndex, Player().craftIndex, true, amount)
-end
-
--- textbox text changed callbacks
-function TransferCrewGoods.onPlayerTransferCrewTextEntered(textBox)
-    local enteredNumber = tonumber(textBox.text)
-    if enteredNumber == nil then
-        enteredNumber = 0
-    end
-
-    local newNumber = enteredNumber
-
-    -- get available amount
-    local crewmanIndex = crewmenByTextBox[textBox.index]
-    if not crewmanIndex then return end
-
-    local sender = Entity(Player().craftIndex)
-
-    local sorted = TransferCrewGoods.getSortedCrewmen(sender)
-    local p = sorted[crewmanIndex]
-    if not p then return end
-
-    local maxAmount = p.num
-    if newNumber > maxAmount then
-        newNumber = maxAmount
-    end
-
-    if newNumber ~= enteredNumber then
-        textBox.text = newNumber
-    end
-end
-
-function TransferCrewGoods.onSelfTransferCrewTextEntered(textBox)
-    local enteredNumber = tonumber(textBox.text)
-    if enteredNumber == nil then
-        enteredNumber = 0
-    end
-
-    local newNumber = enteredNumber
-
-    -- get available amount
-    local crewmanIndex = crewmenByTextBox[textBox.index]
-    if not crewmanIndex then return end
-
-    local sender = Entity()
-
-    local sorted = TransferCrewGoods.getSortedCrewmen(sender)
-    local p = sorted[crewmanIndex]
-    if not p then return end
-
-    local maxAmount = p.num
-    if newNumber > maxAmount then
-        newNumber = maxAmount
-    end
-
-    if newNumber ~= enteredNumber then
-        textBox.text = newNumber
-    end
 end
 
 function TransferCrewGoods.onPlayerTransferCargoTextEntered(textBox)
@@ -1216,10 +900,7 @@ function TransferCrewGoods.onPlayerTransferCargoTextEntered(textBox)
     if not cargoIndex then return end
 
     local sender = Entity(Player().craftIndex)
-    --MOD: TransferCargoTweaks
-    --local _, maxAmount = sender:getCargo(cargoIndex - 1)
     local maxAmount = playerCargoList[playerGoodIndexesByName[playerGoodSearchNames[cargoIndex]]].amount or 0
-    --MOD
 
     maxAmount = maxAmount or 0
 
@@ -1245,10 +926,7 @@ function TransferCrewGoods.onSelfTransferCargoTextEntered(textBox)
     if not cargoIndex then return end
 
     local sender = Entity()
-    --MOD: TransferCargoTweaks
-    --local good, maxAmount = sender:getCargo(cargoIndex - 1)
     local maxAmount = selfCargoList[selfGoodIndexesByName[selfGoodSearchNames[cargoIndex]]].amount or 0
-    --MOD
 
     if newNumber > maxAmount then
         newNumber = maxAmount
@@ -1280,12 +958,12 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CrewMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CrewMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1333,12 +1011,12 @@ function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther)
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CrewMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CrewMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1352,21 +1030,13 @@ function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther)
 end
 callable(TransferCrewGoods, "transferAllCrew")
 
-function TransferCrewGoods.onPlayerTransferAllCargoPressed(button)
-    invokeServerFunction("transferAllCargo", Player().craftIndex, false)
-end
-
-function TransferCrewGoods.onSelfTransferAllCargoPressed(button)
-    invokeServerFunction("transferAllCargo", Player().craftIndex, true)
-end
-
 function TransferCrewGoods.onPlayerTransferCargoPressed(button)
     -- transfer cargo from player ship to self
 
     -- check which cargo
     local cargo = cargosByButton[button.index]
     if cargo == nil then return end
-    cargo = playerGoodIndexesByName[playerGoodSearchNames[cargo]] --MOD: TransferCargoTweaks
+    cargo = playerGoodIndexesByName[playerGoodSearchNames[cargo]]
 
     -- get amount
     local textboxIndex = textboxIndexByButton[button.index]
@@ -1376,7 +1046,6 @@ function TransferCrewGoods.onPlayerTransferCargoPressed(button)
     if not box then return end
 
     local amount = tonumber(box.text) or 0
-    --MOD: TransferCargoTweaks
     local keyboard = Keyboard()
     if keyboard:keyPressed(KeyboardKey.LControl) or keyboard:keyPressed(KeyboardKey.RControl) then
         amount = 5
@@ -1385,7 +1054,6 @@ function TransferCrewGoods.onPlayerTransferCargoPressed(button)
     elseif keyboard:keyPressed(KeyboardKey.LAlt) or keyboard:keyPressed(KeyboardKey.RAlt) then
         amount = 50
     end
-    --MOD
     if amount == 0 then return end
 
     invokeServerFunction("transferCargo", cargo - 1, Player().craftIndex, false, amount)
@@ -1397,7 +1065,7 @@ function TransferCrewGoods.onSelfTransferCargoPressed(button)
     -- check which cargo
     local cargo = cargosByButton[button.index]
     if cargo == nil then return end
-    cargo = selfGoodIndexesByName[selfGoodSearchNames[cargo]] --MOD: TransferCargoTweaks
+    cargo = selfGoodIndexesByName[selfGoodSearchNames[cargo]]
 
     -- get amount
     local textboxIndex = textboxIndexByButton[button.index]
@@ -1407,7 +1075,6 @@ function TransferCrewGoods.onSelfTransferCargoPressed(button)
     if not box then return end
 
     local amount = tonumber(box.text) or 0
-    --MOD: TransferCargoTweaks
     local keyboard = Keyboard()
     if keyboard:keyPressed(KeyboardKey.LControl) or keyboard:keyPressed(KeyboardKey.RControl) then
         amount = 5
@@ -1416,12 +1083,10 @@ function TransferCrewGoods.onSelfTransferCargoPressed(button)
     elseif keyboard:keyPressed(KeyboardKey.LAlt) or keyboard:keyPressed(KeyboardKey.RAlt) then
         amount = 50
     end
-    --MOD
     if amount == 0 then return end
 
     invokeServerFunction("transferCargo", cargo - 1, Player().craftIndex, true, amount)
 end
-
 
 function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, amount)
     local sender
@@ -1444,12 +1109,12 @@ function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, am
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CargoMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CargoMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1496,12 +1161,12 @@ function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther)
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TCTweaksConfig.CargoMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CargoMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1534,60 +1199,6 @@ function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther)
 end
 callable(TransferCrewGoods, "transferAllCargo")
 
-function TransferCrewGoods.onPlayerTransferAllFightersPressed(button)
-    invokeServerFunction("transferAllFighters", Player().craftIndex, Entity().index)
-end
-
-function TransferCrewGoods.onSelfTransferAllFightersPressed(button)
-    invokeServerFunction("transferAllFighters", Entity().index, Player().craftIndex)
-end
-
-function TransferCrewGoods.onFighterReceived(selectionIndex, fkx, fky, item, fromIndex, toIndex, tkx, tky)
-    if not item then return end
-
-    local sender
-    if isPlayerShipBySelection[fromIndex] then
-        sender = Player().craftIndex
-    else
-        sender = Entity().index
-    end
-
-    local receiver
-    if isPlayerShipBySelection[toIndex] then
-        receiver = Player().craftIndex
-    else
-        receiver = Entity().index
-    end
-
-    local squad = item.value0
-    local index = item.value1
-    local receiverSquad = squadIndexBySelection[toIndex]
-
-    if receiverSquad == squad and fromIndex == toIndex then return end
-
-    invokeServerFunction("transferFighter", sender, squad, index, receiver, receiverSquad)
-end
-
-function TransferCrewGoods.onFighterClicked(selectionIndex, x, y, item, button)
-    if button ~= 3 then return end
-    if not item then return end
-
-    local sender
-    local receiver
-    if isPlayerShipBySelection[selectionIndex] then
-        sender = Player().craftIndex
-        receiver = Entity().index
-    else
-        sender = Entity().index
-        receiver = Player().craftIndex
-    end
-
-    local squad = item.value0
-    local index = item.value1
-
-    invokeServerFunction("transferFighter", sender, squad, index, receiver, squad)
-end
-
 function TransferCrewGoods.transferFighter(sender, squad, index, receiver, receiverSquad)
     if not onServer() then return end
 
@@ -1603,12 +1214,12 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
         if (senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
             return
         end
-    elseif senderEntity:getNearestDistance(entityReceiver) > TCTweaksConfig.FightersMaxTransferDistance then
+    elseif senderEntity:getNearestDistance(entityReceiver) > TransferCargoTweaksConfig.FightersMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1681,12 +1292,12 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
     end
 
     -- check distance
-    if TCTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
+    if TransferCargoTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
         if (senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)) then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
             return
         end
-    elseif senderEntity:getNearestDistance(entityReceiver) > TCTweaksConfig.FightersMaxTransferDistance then
+    elseif senderEntity:getNearestDistance(entityReceiver) > TransferCargoTweaksConfig.FightersMaxTransferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1751,7 +1362,6 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
 end
 callable(TransferCrewGoods, "transferAllFighters")
 
--- this function gets called every time the window is shown on the client, ie. when a player presses F
 function TransferCrewGoods.onShowWindow()
     local player = Player()
     local ship = Entity()
@@ -1759,47 +1369,22 @@ function TransferCrewGoods.onShowWindow()
 
     ship:registerCallback("onCrewChanged", "onCrewChanged")
     other:registerCallback("onCrewChanged", "onCrewChanged")
-
-    --MOD: TransferCargoTweaks
-    -- set all textboxes to default values
-    --[[for i = 1, #playerCrewTextBoxes do
-        playerCrewTextBoxes[i].text = "1"
-    end
-    for i = 1, #selfCrewTextBoxes do
-        selfCrewTextBoxes[i].text = "1"
-    end
-    for i = 1, #playerCargoTextBoxes do
-        playerCargoTextBoxes[i].text = "1"
-    end
-    for i = 1, #selfCargoTextBoxes do
-        selfCargoTextBoxes[i].text = "1"
-    end]]
     
-    if TCTweaksConfig.EnableFavorites then -- load favorites
+    if TransferCargoTweaksConfig.EnableFavorites then -- load favorites
         favoritesFile, err = loadFavorites()
-        if err == 1 then eprint("[ERROR][TCTweaks]: Settings file is corrupted") end
+        if err == 1 then eprint("[ERROR][TransferCargoTweaks]: Settings file is corrupted") end
         if not favoritesFile then
-            favoritesFile = { version = TCTweaksConfig.version.string }
+            favoritesFile = { version = TransferCargoTweaksConfig.version.string }
         end
         local favorites = favoritesFile[Entity().index.string] or { {}, {} }
         if not favorites[1] then favorites[1] = {} end
         if not favorites[2] then favorites[2] = {} end
         stationFavorites = favorites
-        --[[-- convert latin names to localized to improve performance of future checks
-        stationFavorites = { {}, {} }
-        for k, v in pairs(favorites[1]) do
-            stationFavorites[1][k%_t] = v
-        end
-        for k, v in pairs(favorites[2]) do
-            stationFavorites[2][k%_t] = v
-        end]]
     end
-    --MOD
 
     TransferCrewGoods.updateData()
 end
 
--- this function gets called every time the window is shown on the client, ie. when a player presses F
 function TransferCrewGoods.onCloseWindow()
     local player = Player()
     local ship = Entity()
@@ -1808,8 +1393,7 @@ function TransferCrewGoods.onCloseWindow()
     ship:unregisterCallback("onCrewChanged", "onCrewChanged")
     other:unregisterCallback("onCrewChanged", "onCrewChanged")
 
-    --MOD: TransferCargoTweaks
-    if TCTweaksConfig.EnableFavorites then -- save favorites
+    if TransferCargoTweaksConfig.EnableFavorites then -- save favorites
         local favorites = { {}, {} }
         local playerFavCount = 0
         local selfFavCount = 0
@@ -1830,40 +1414,14 @@ function TransferCrewGoods.onCloseWindow()
         favoritesFile[Entity().index.string] = favorites
         local success, err = saveFavorites(favoritesFile)
         if err then
-            eprint("[ERROR][TCTweaks]: Couldn't save settings file due to an error: "..err)
+            eprint("[ERROR][TransferCargoTweaks]: Couldn't save settings file due to an error: "..err)
         end
 
         favoritesFile = nil
         stationFavorites = { {}, {} }
     end
-    --MOD
 end
 
-function TransferCrewGoods.onCrewChanged(id, delta, profession)
-    if delta and profession then
-        TransferCrewGoods.updateData()
-    end
-end
-
--- this function will be executed every frame both on the server and the client
---function update(timeStep)
---end
---
----- this function will be executed every frame on the client only
---function updateClient(timeStep)
---end
---
----- this function will be executed every frame on the server only
---function updateServer(timeStep)
---end
---
----- this function will be executed every frame on the client only
----- use this for rendering additional elements to the target indicator of the object
---function renderUIIndicator(px, py, size)
---end
---
----- this function will be executed every frame on the client only
----- use this for rendering additional elements to the interaction menu of the target craft
 function TransferCrewGoods.renderUI()
     local activeSelection
     for _, selection in pairs(playerFighterSelections) do
@@ -1882,35 +1440,33 @@ function TransferCrewGoods.renderUI()
         end
     end
 
-    if activeSelection then --if not activeSelection then return end --MOD: TransferCargoTweaks
+    if activeSelection then
+        local mousePos = Mouse().position
+        local key = activeSelection:getMouseOveredKey()
+        if key.y ~= 0 then return end
+        if key.x < 0 then return end
 
-    local mousePos = Mouse().position
-    local key = activeSelection:getMouseOveredKey()
-    if key.y ~= 0 then return end
-    if key.x < 0 then return end
+        local entity
+        if isPlayerShipBySelection[activeSelection.index] then
+            entity = Player().craftIndex
+        else
+            entity = Entity().index
+        end
 
-    local entity
-    if isPlayerShipBySelection[activeSelection.index] then
-        entity = Player().craftIndex
-    else
-        entity = Entity().index
+        if not entity then return end
+
+        local hangar = Hangar(entity)
+        if not hangar then return end
+
+        local fighter = hangar:getFighter(squadIndexBySelection[activeSelection.index], key.x)
+        if not fighter then return end
+
+        local renderer = TooltipRenderer(makeFighterTooltip(fighter))
+        renderer:drawMouseTooltip(mousePos)
+        return
     end
 
-    if not entity then return end
-
-    local hangar = Hangar(entity)
-    if not hangar then return end
-
-    local fighter = hangar:getFighter(squadIndexBySelection[activeSelection.index], key.x)
-    if not fighter then return end
-
-    local renderer = TooltipRenderer(makeFighterTooltip(fighter))
-    renderer:drawMouseTooltip(mousePos)
-    --MOD: TransferCargoTweaks
-    return
-    end
-
-    if not TCTweaksConfig.EnableFavorites then return end
+    if not TransferCargoTweaksConfig.EnableFavorites then return end
     local currentTab = tabbedWindow:getActiveTab()
     if not currentTab or currentTab.index ~= cargoTabIndex then return end
 
@@ -1932,30 +1488,30 @@ function TransferCrewGoods.renderUI()
                 if playerFavoriteButtons[i].mouseOver then
                     if priority ~= 2 then
                         stationFavorites[1][goodName] = 2
-                        playerFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/star.png"
-                        playerTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        playerFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/star.png"
+                        playerTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     else
                         stationFavorites[1][goodName] = nil
-                        playerFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        playerFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     end
                     if playerFavoritesEnabled then playerSortGoods() end
                 elseif playerTrashButtons[i].mouseOver then
                     if priority ~= 0 then
                         stationFavorites[1][goodName] = 0
-                        playerFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                        playerTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/trash.png"
+                        playerFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                        playerTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/trash.png"
                     else
                         stationFavorites[1][goodName] = nil
-                        playerTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        playerTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     end
                     if playerFavoritesEnabled then playerSortGoods() end
                 end
             else -- just hover
                 if priority ~= 2 then
-                    playerFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/star-hover.png"
+                    playerFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/star-hover.png"
                 end
                 if priority ~= 0 then
-                    playerTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/trash-hover.png"
+                    playerTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/trash-hover.png"
                 end
             end
             break
@@ -1977,30 +1533,30 @@ function TransferCrewGoods.renderUI()
                 if selfFavoriteButtons[i].mouseOver then
                     if priority ~= 2 then
                         stationFavorites[2][goodName] = 2
-                        selfFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/star.png"
-                        selfTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        selfFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/star.png"
+                        selfTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     else
                         stationFavorites[2][goodName] = nil
-                        selfFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        selfFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     end
                     if selfFavoritesEnabled then selfSortGoods() end
                 elseif selfTrashButtons[i].mouseOver then
                     if priority ~= 0 then
                         stationFavorites[2][goodName] = 0
-                        selfFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                        selfTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/trash.png"
+                        selfFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                        selfTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/trash.png"
                     else
                         stationFavorites[2][goodName] = nil
-                        selfTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                        selfTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/empty.png"
                     end
                     if selfFavoritesEnabled then selfSortGoods() end
                 end
             else -- just hover
                 if priority ~= 2 then
-                    selfFavoriteButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/star-hover.png"
+                    selfFavoriteButtons[i].picture = "data/textures/icons/transfercargotweaks/star-hover.png"
                 end
                 if priority ~= 0 then
-                    selfTrashButtons[i].picture = "mods/TransferCargoTweaks/textures/icons/trash-hover.png"
+                    selfTrashButtons[i].picture = "data/textures/icons/transfercargotweaks/trash-hover.png"
                 end
             end
             break
@@ -2011,10 +1567,10 @@ function TransferCrewGoods.renderUI()
         cargo = playerCargoList[playerGoodIndexesByName[playerGoodSearchNames[playerLastHoveredRow]]]
         priority = stationFavorites[1][cargo.good.name]
         if priority ~= 2 then
-            playerFavoriteButtons[playerLastHoveredRow].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            playerFavoriteButtons[playerLastHoveredRow].picture = "data/textures/icons/transfercargotweaks/empty.png"
         end
         if priority ~= 0 then
-            playerTrashButtons[playerLastHoveredRow].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            playerTrashButtons[playerLastHoveredRow].picture = "data/textures/icons/transfercargotweaks/empty.png"
         end
     end
     playerLastHoveredRow = playerHoveredRow
@@ -2023,17 +1579,17 @@ function TransferCrewGoods.renderUI()
         cargo = selfCargoList[selfGoodIndexesByName[selfGoodSearchNames[selfLastHoveredRow]]]
         priority = stationFavorites[2][cargo.good.name]
         if priority ~= 2 then
-            selfFavoriteButtons[selfLastHoveredRow].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            selfFavoriteButtons[selfLastHoveredRow].picture = "data/textures/icons/transfercargotweaks/empty.png"
         end
         if priority ~= 0 then
-            selfTrashButtons[selfLastHoveredRow].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+            selfTrashButtons[selfLastHoveredRow].picture = "data/textures/icons/transfercargotweaks/empty.png"
         end
     end
     selfLastHoveredRow = selfHoveredRow
-    --MOD
 end
 
---MOD: TransferCargoTweaks
+-- MOD FUNCTIONS
+
 function TransferCrewGoods.onPlayerToggleCargoSearchPressed(button)
     playerCargoSearchBox.visible = not playerCargoSearchBox.visible
 end
@@ -2041,9 +1597,9 @@ end
 function TransferCrewGoods.onPlayerToggleFavoritesPressed(button)
     playerFavoritesEnabled = not playerFavoritesEnabled
     if playerFavoritesEnabled then
-        button.icon = "mods/TransferCargoTweaks/textures/icons/favorites-enabled.png"
+        button.icon = "data/textures/icons/transfercargotweaks/favorites-enabled.png"
     else
-        button.icon = "mods/TransferCargoTweaks/textures/icons/favorites.png"
+        button.icon = "data/textures/icons/transfercargotweaks/favorites.png"
     end
     playerSortGoods()
 end
@@ -2055,9 +1611,9 @@ end
 function TransferCrewGoods.onSelfToggleFavoritesPressed(button)
     selfFavoritesEnabled = not selfFavoritesEnabled
     if selfFavoritesEnabled then
-        button.icon = "mods/TransferCargoTweaks/textures/icons/favorites-enabled.png"
+        button.icon = "data/textures/icons/transfercargotweaks/favorites-enabled.png"
     else
-        button.icon = "mods/TransferCargoTweaks/textures/icons/favorites.png"
+        button.icon = "data/textures/icons/transfercargotweaks/favorites.png"
     end
     selfSortGoods()
 end
@@ -2069,9 +1625,9 @@ function TransferCrewGoods.playerCargoSearch()
     local query = playerCargoSearchBox.text
     if playerPrevQuery[1] ~= query then
         if playerPrevQuery[1] == '' then
-            playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search-text.png"
+            playerToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search-text.png"
         elseif query == '' then
-            playerToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+            playerToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
         end
         playerPrevQuery[1] = query
         playerPrevQuery[2] = utf8.lower(query)
@@ -2090,7 +1646,7 @@ function TransferCrewGoods.playerCargoSearch()
 
     local rowNumber = 0
     for i = 1, #playerGoodNames do
-        if rowNumber == TCTweaksConfig.CargoRowsAmount then break end
+        if rowNumber == TransferCargoTweaksConfig.CargoRowsAmount then break end
         
         local cargo = playerCargoList[playerGoodIndexesByName[playerGoodNames[i]]]
         local good = cargo.good
@@ -2098,7 +1654,6 @@ function TransferCrewGoods.playerCargoSearch()
         
         -- save/retrieve lowercase good names
         local nameLowercase
-        --local displayName = playerGoodNames[i]
         local actualDisplayName = good:displayName(amount)
         if not cargoLowerCache[actualDisplayName] then
             cargoLowerCache[actualDisplayName] = utf8.lower(actualDisplayName)
@@ -2110,9 +1665,6 @@ function TransferCrewGoods.playerCargoSearch()
 
             local bar = playerCargoBars[rowNumber]
             local overlayName = playerCargoLabels[rowNumber]
-            --local cargo = playerCargoList[playerGoodIndexesByName[playerGoodNames[i]]]
-            --local good = cargo.good
-            --local amount = cargo.amount
             local displayName = playerGoodNames[i]
 
             playerCargoIcons[rowNumber].picture = good.icon
@@ -2144,22 +1696,21 @@ function TransferCrewGoods.playerCargoSearch()
             end
 
             -- favorites and trash icons/buttons
-            if TCTweaksConfig.EnableFavorites then
+            if TransferCargoTweaksConfig.EnableFavorites then
                 local priority = stationFavorites[1][good.name]
                 if priority == 2 then
-                    playerFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/star.png"
-                    playerTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                    playerFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/star.png"
+                    playerTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
                 elseif priority == 0 then
-                    playerFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                    playerTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/trash.png"
+                    playerFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                    playerTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/trash.png"
                 else
-                    playerFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                    playerTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                    playerFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                    playerTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
                 end
             end
 
             -- cargo overlay name
-            --displayName = amount > 1 and good.displayPlural or good.displayName
             -- adjust overlay name vertically (because we don't have built-in way to do this)
             if utf8.len(name) > 28 then
                 if not overlayName.reducedFont then
@@ -2176,7 +1727,7 @@ function TransferCrewGoods.playerCargoSearch()
         end
     end
 
-    if TCTweaksConfig.EnableFavorites then
+    if TransferCargoTweaksConfig.EnableFavorites then
         -- hide only rows that were shown in prev search but not in current
         for i = rowNumber+1, playerCargoPrevCount do
             playerCargoIcons[i].visible = false
@@ -2223,9 +1774,9 @@ function TransferCrewGoods.selfCargoSearch()
     local query = selfCargoSearchBox.text
     if selfPrevQuery[1] ~= query then
         if selfPrevQuery[1] == '' then
-            selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search-text.png"
+            selfToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search-text.png"
         elseif query == '' then
-            selfToggleSearchBtn.icon = "mods/TransferCargoTweaks/textures/icons/search.png"
+            selfToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
         end
         selfPrevQuery[1] = query
         selfPrevQuery[2] = utf8.lower(query)
@@ -2243,14 +1794,13 @@ function TransferCrewGoods.selfCargoSearch()
 
     local rowNumber = 0
     for i = 1, #selfGoodNames do
-        if rowNumber == TCTweaksConfig.CargoRowsAmount then break end
+        if rowNumber == TransferCargoTweaksConfig.CargoRowsAmount then break end
 
         local cargo = selfCargoList[selfGoodIndexesByName[selfGoodNames[i]]]
         local good = cargo.good
         local amount = cargo.amount
         
         local nameLowercase
-        --local displayName = selfGoodNames[i]
         local actualDisplayName = good:displayName(amount)
         if not cargoLowerCache[actualDisplayName] then
             cargoLowerCache[actualDisplayName] = utf8.lower(actualDisplayName)
@@ -2262,9 +1812,6 @@ function TransferCrewGoods.selfCargoSearch()
 
             local bar = selfCargoBars[rowNumber]
             local overlayName = selfCargoLabels[rowNumber]
-            --local cargo = selfCargoList[selfGoodIndexesByName[selfGoodNames[i]]]
-            --local good = cargo.good
-            --local amount = cargo.amount
             local displayName = selfGoodNames[i]
 
             selfCargoIcons[rowNumber].picture = good.icon
@@ -2296,22 +1843,21 @@ function TransferCrewGoods.selfCargoSearch()
             end
 
             -- favorites and trash icons/buttons
-            if TCTweaksConfig.EnableFavorites then
+            if TransferCargoTweaksConfig.EnableFavorites then
                 local priority = stationFavorites[2][good.name]
                 if priority == 2 then
-                    selfFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/star.png"
-                    selfTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                    selfFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/star.png"
+                    selfTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
                 elseif priority == 0 then
-                    selfFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                    selfTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/trash.png"
+                    selfFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                    selfTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/trash.png"
                 else
-                    selfFavoriteButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
-                    selfTrashButtons[rowNumber].picture = "mods/TransferCargoTweaks/textures/icons/empty.png"
+                    selfFavoriteButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
+                    selfTrashButtons[rowNumber].picture = "data/textures/icons/transfercargotweaks/empty.png"
                 end
             end
 
             -- overlay cargo name
-            --displayName = amount > 1 and good.displayPlural or good.displayName
             if utf8.len(name) > 28 then
                 if not overlayName.reducedFont then
                     overlayName.reducedFont = true
@@ -2327,7 +1873,7 @@ function TransferCrewGoods.selfCargoSearch()
         end
     end
 
-    if TCTweaksConfig.EnableFavorites then
+    if TransferCargoTweaksConfig.EnableFavorites then
         -- hide
         for i = rowNumber+1, selfCargoPrevCount do
             selfCargoIcons[i].visible = false
@@ -2367,4 +1913,3 @@ function TransferCrewGoods.selfCargoSearch()
 
     selfCargoPrevCount = rowNumber
 end
---MOD
