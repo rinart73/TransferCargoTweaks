@@ -1,13 +1,37 @@
-local status, utf8 = pcall(include, "data/scripts/lib/utf8")
+local status, utf8 = pcall(include, "azimuthlib-utf8")
 if not status then
-    eprint("[ERROR][TransferCargoTweaks]: Couldn't load utf8 library")
-    return -- can't work without it
+    eprint("[ERROR][TransferCargoTweaks]: Couldn't load AzimuthLib module 'utf8': " .. utf8)
+    return
 end
-local status, TransferCargoTweaksConfig = pcall(include, 'data/config/TransferCargoTweaksConfig')
+
+local status, AzimuthConfig = pcall(include, 'azimuthlib-config')
 if not status then
-    eprint("[ERROR][TransferCargoTweaks]: Couldn't load config, using default settings")
-    TransferCargoTweaksConfig = { CargoRowsAmount = 100, FightersMaxTransferDistance = 20, CargoMaxTransferDistance = 20, CrewMaxTransferDistance = 20 }
+    eprint("[ERROR][TransferCargoTweaks]: Couldn't load AzimuthLib module 'config': " ..  AzimuthConfig)
+    return
 end
+
+local TransferCargoTweaksConfig, status
+if onClient() then -- different configs for client/server
+    TransferCargoTweaksConfig, status = AzimuthConfig.loadConfig("TransferCargoTweaks", {
+      _version = "1.6",
+      CargoRowsAmount = 100,
+      EnableFavorites = true,
+      ToggleFavoritesByDefault = true,
+      EnableCrewWorkforcePreview = true
+    })
+else
+    TransferCargoTweaksConfig, status = AzimuthConfig.loadConfig("TransferCargoTweaks", {
+      _version = "1.6",
+      FightersMaxTransferDistance = 20,
+      CargoMaxTransferDistance = 20,
+      CrewMaxTransferDistance = 20,
+      CheckIfDocked = true
+    })
+end
+if status == 1 then -- create config file if doesn't exist
+    AzimuthConfig.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig)
+end
+
 
 local favoritesFile = {} -- file with all stations of the server
 local stationFavorites = { {}, {} } -- current station only
@@ -115,42 +139,6 @@ local function selfSortGoods()
         table.sort(selfGoodNames, selfSortGoodsFavorites)
     end
     TransferCrewGoods.selfCargoSearch()
-end
-
-local function serialze(o)
-    if type(o) == 'table' then
-        local s = '{'
-        for k,v in pairs(o) do
-          if type(k) ~= 'number' then k = '"'..k..'"' end
-          s = s .. '['..k..']=' .. serialze(v) .. ','
-        end
-        return s .. '}'
-    else
-        return type(o) == "string" and '"'..o:gsub("([\"\\])", "\\%1")..'"' or tostring(o)
-    end
-end
-
-local function loadFavorites()
-    local seed = GameSettings().seed
-    local file, err = io.open("TransferCargoTweaks_"..seed..".lua", "r")
-    if err then return nil, err end
-    local result = loadstring(file:read("*a"))
-    if not result then
-        file:close()
-        return nil, 1
-    end
-    result = result()
-    file:close()
-    return result
-end
-
-local function saveFavorites(tbl)
-    local seed = GameSettings().seed
-    local file, err = io.open("TransferCargoTweaks_"..seed..".lua", "wb")
-    if err then return false, err end
-    file:write("return "..serialze(tbl))
-    file:close()
-    return true
 end
 
 -- OVERRIDDEN FUNCTIONS
@@ -979,10 +967,7 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     local crewman = p.crewman
 
     -- make sure sending ship has enough members of this type
-    if sender.crew:getNumMembers(crewman) < amount then
-        eprint("not enough crew of this type")
-        return
-    end
+    amount = math.min(amount, sender.crew:getNumMembers(crewman))
 
     -- transfer
     sender:removeCrew(amount, crewman)
@@ -1371,11 +1356,7 @@ function TransferCrewGoods.onShowWindow()
     other:registerCallback("onCrewChanged", "onCrewChanged")
     
     if TransferCargoTweaksConfig.EnableFavorites then -- load favorites
-        favoritesFile, err = loadFavorites()
-        if err == 1 then eprint("[ERROR][TransferCargoTweaks]: Settings file is corrupted") end
-        if not favoritesFile then
-            favoritesFile = { version = TransferCargoTweaksConfig.version.string }
-        end
+        favoritesFile = AzimuthConfig.loadConfig("TransferCargoTweaks", { _version = TransferCargoTweaksConfig._version }, true)
         local favorites = favoritesFile[Entity().index.string] or { {}, {} }
         if not favorites[1] then favorites[1] = {} end
         if not favorites[2] then favorites[2] = {} end
@@ -1412,11 +1393,7 @@ function TransferCrewGoods.onCloseWindow()
             if selfFavCount == 0 then favorites[2] = nil end
         end
         favoritesFile[Entity().index.string] = favorites
-        local success, err = saveFavorites(favoritesFile)
-        if err then
-            eprint("[ERROR][TransferCargoTweaks]: Couldn't save settings file due to an error: "..err)
-        end
-
+        AzimuthConfig.saveConfig("TransferCargoTweaks", favoritesFile, true)
         favoritesFile = nil
         stationFavorites = { {}, {} }
     end
