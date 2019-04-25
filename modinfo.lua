@@ -21,7 +21,7 @@ meta =
 
     -- Version of your mod, should be in format 1.0.0 (major.minor.patch) or 1.0 (major.minor)
     -- This will be used to check for unmet dependencies or incompatibilities
-    version = "1.6",
+    version = "1.6.1",
 
     -- If your mod requires dependencies, enter them here. The game will check that all dependencies given here are met.
     -- Possible attributes:
@@ -39,7 +39,7 @@ meta =
     --      {id = "OptionalMod", min = "0.2", optional = true}, -- we support OptionalMod optionally, starting at version 0.2
     -- },
     dependencies = {
-        {id = "AzimuthLib", min = "1.0"},
+        {id = "1722652757", min = "1.1"},
         {id = "Avorion", min = "0.22", max = "0.22"}
     },
 

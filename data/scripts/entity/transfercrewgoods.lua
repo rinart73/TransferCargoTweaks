@@ -10,40 +10,65 @@ if not status then
     return
 end
 
-local TransferCargoTweaksConfig, status
+local TransferCargoTweaksConfig, configOptions
 if onClient() then -- different configs for client/server
-    TransferCargoTweaksConfig, status = AzimuthBasic.loadConfig("TransferCargoTweaks", {
-      _version = "1.6",
-      CargoRowsAmount = 100,
-      EnableFavorites = true,
-      ToggleFavoritesByDefault = true,
-      EnableCrewWorkforcePreview = true
-    })
-    -- resave config file with comments/updates
-    AzimuthBasic.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, {
-      _version = "Config version. Don't touch",
-      CargoRowsAmount = "Default: 100. Increase if you have a lot of goods in your cargo storage.",
-      EnableFavorites = "Default: true. Enable favorites/trash system.",
-      ToggleFavoritesByDefault = "Default: true. If favorites system is enabled, it will be turned on by default when you open transfer window.",
-      EnableCrewWorkforcePreview = "Default: true. Show current an minimal crew workforce in crew transfer tab."
-    })
+    configOptions = {
+      _version = {
+        comment = "Config version. Don't touch",
+        default = "1.6"
+      },
+      CargoRowsAmount = {
+        comment = "Increase if you have a lot of goods in your cargo storage.",
+        default = 100,
+        min = 10,
+        max = 300
+      },
+      EnableFavorites = {
+        comment = "Enable favorites/trash system.",
+        default = true
+      },
+      ToggleFavoritesByDefault = {
+        comment = "If favorites system is enabled, it will be turned on by default when you open transfer window.",
+        default = true
+      },
+      EnableCrewWorkforcePreview = {
+        comment = "Show current an minimal crew workforce in crew transfer tab.",
+        default = true
+      }
+    }
 else
-    TransferCargoTweaksConfig, status = AzimuthBasic.loadConfig("TransferCargoTweaks", {
-      _version = "1.6",
-      FightersMaxTransferDistance = 20,
-      CargoMaxTransferDistance = 20,
-      CrewMaxTransferDistance = 20,
-      CheckIfDocked = true
-    })
-     -- resave config file with comments/updates
-    AzimuthBasic.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, {
-      _version = "Config version. Don't touch",
-      FightersMaxTransferDistance = "Default: 20. Specify max distance for transferring fighters.",
-      CargoMaxTransferDistance = "Default: 20. Specify max distance for transferring cargo.",
-      CrewMaxTransferDistance = "Default: 20. Specify max distance for transferring crew.",
-      CheckIfDocked = "Default: true. If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance."
-    })
+    configOptions = {
+      _version = {
+        comment = "Config version. Don't touch",
+        default = "1.1"
+      },
+      FightersMaxTransferDistance = {
+        comment = "Specify max distance for transferring fighters.",
+        default = 20,
+        min = 2,
+        max = 20000
+      },
+      CargoMaxTransferDistance = {
+        comment = "Specify max distance for transferring cargo.",
+        default = 20,
+        min = 2,
+        max = 20000
+      },
+      CrewMaxTransferDistance = {
+        comment = "Specify max distance for transferring crew.",
+        default = 20,
+        min = 2,
+        max = 20000
+      },
+      CheckIfDocked = {
+        comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance.",
+        default = true
+      }
+    }
 end
+TransferCargoTweaksConfig = AzimuthBasic.loadConfig("TransferCargoTweaks", configOptions)
+-- resave config file with comments/updates
+AzimuthBasic.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, configOptions)
 
 
 local favoritesFile = {} -- file with all stations of the server
