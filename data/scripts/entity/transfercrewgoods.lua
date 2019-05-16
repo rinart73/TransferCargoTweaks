@@ -1,16 +1,9 @@
-local status, utf8 = pcall(include, "azimuthlib-utf8")
-if not status then
-    eprint("[ERROR][TransferCargoTweaks]: Couldn't load AzimuthLib module 'utf8': " .. utf8)
-    return
-end
+local Azimuth = include("azimuthlib-basic")
+local utf8 = include("azimuthlib-utf8")
+if not Azimuth or not utf8 then return end
 
-local status, AzimuthBasic = pcall(include, 'azimuthlib-basic')
-if not status then
-    eprint("[ERROR][TransferCargoTweaks]: Couldn't load AzimuthLib module 'config': " ..  AzimuthBasic)
-    return
-end
 
-local TransferCargoTweaksConfig, configOptions
+local TransferCargoTweaksConfig, configOptions, isModified
 if onClient() then -- different configs for client/server
     configOptions = {
       _version = {
@@ -66,9 +59,10 @@ else
       }
     }
 end
-TransferCargoTweaksConfig = AzimuthBasic.loadConfig("TransferCargoTweaks", configOptions)
--- resave config file with comments/updates
-AzimuthBasic.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, configOptions)
+TransferCargoTweaksConfig, isModified = Azimuth.loadConfig("TransferCargoTweaks", configOptions)
+if isModified then
+    Azimuth.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, configOptions)
+end
 
 
 local favoritesFile = {} -- file with all stations of the server
@@ -1394,7 +1388,7 @@ function TransferCrewGoods.onShowWindow()
     other:registerCallback("onCrewChanged", "onCrewChanged")
     
     if TransferCargoTweaksConfig.EnableFavorites then -- load favorites
-        favoritesFile = AzimuthBasic.loadConfig("TransferCargoTweaks", { _version = TransferCargoTweaksConfig._version }, true)
+        favoritesFile = Azimuth.loadConfig("TransferCargoTweaks", { _version = TransferCargoTweaksConfig._version }, true, true)
         local favorites = favoritesFile[Entity().index.string] or { {}, {} }
         if not favorites[1] then favorites[1] = {} end
         if not favorites[2] then favorites[2] = {} end
@@ -1431,7 +1425,7 @@ function TransferCrewGoods.onCloseWindow()
             if selfFavCount == 0 then favorites[2] = nil end
         end
         favoritesFile[Entity().index.string] = favorites
-        AzimuthBasic.saveConfig("TransferCargoTweaks", favoritesFile, nil, true)
+        Azimuth.saveConfig("TransferCargoTweaks", favoritesFile, nil, true, true)
         favoritesFile = nil
         stationFavorites = { {}, {} }
     end
