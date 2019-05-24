@@ -1,18 +1,5 @@
 # ========== mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua ==========
 #: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
-msgid "Level %u"
-msgstr "Level %u"
-
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
-msgid "Untrained"
-msgstr "Ungelernte"
-
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
-msgctxt "plural"
-msgid "Untrained"
-msgstr "Ungelernte"
-
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
 msgid "You must be docked to the station to transfer crew."
 msgstr "Du musst an die Station gedockt sein, um die Mannschaft zu transferieren."
 

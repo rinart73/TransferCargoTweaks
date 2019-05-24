@@ -586,12 +586,18 @@ function TransferCrewGoods.updateData()
         local crewman = p.crewman
         local num = p.num
 
-        local caption = "${amount} ${profession}"%_t % {amount = createMonetaryString(num), profession = crewman.profession:name(num)}
+        local caption = ""
+        if not crewman.specialist then
+            caption = "${profession} (untrained)"%_t % {profession = crewman.profession:name(num)}
+        else
+            caption = "${profession} (level ${level})"%_t % {profession = crewman.profession:name(num), level = crewman.level}
+        end
         playerTotalCrewBar:addEntry(num, caption, crewman.profession.color)
 
         local icon = playerCrewIcons[i]
         icon:show()
         icon.picture = crewman.profession.icon
+        icon.tooltip = crewman.profession:name()
 
         local singleBar = playerCrewBars[i]
         singleBar.visible = true
@@ -624,15 +630,7 @@ function TransferCrewGoods.updateData()
             end
         end
 
-        local overlayName = caption
-        if p.crewman.specialist then
-            overlayName = string.format("%s (".."Level %u"%_t..")", overlayName, p.crewman.level)
-        elseif num == 1 then
-            overlayName = string.format("%s (%s)", overlayName, "Untrained"%_t)
-        else
-            overlayName = string.format("%s (%s)", overlayName, "Untrained /* plural */"%_t)
-        end
-        playerCrewLabels[i].caption = overlayName
+        playerCrewLabels[i].caption = caption
         playerCrewLabels[i].visible = true
 
         i = i + 1
@@ -651,12 +649,18 @@ function TransferCrewGoods.updateData()
         local crewman = p.crewman
         local num = p.num
 
-        local caption = "${amount} ${profession}"%_t % {amount = createMonetaryString(num), profession = crewman.profession:name(num)}
+        local caption = ""
+        if not crewman.specialist then
+            caption = "${profession} (untrained)"%_t % {profession = crewman.profession:name(num)}
+        else
+            caption = "${profession} (level ${level})"%_t % {profession = crewman.profession:name(num), level = crewman.level}
+        end
         selfTotalCrewBar:addEntry(num, caption, crewman.profession.color)
 
         local icon = selfCrewIcons[i]
         icon:show()
         icon.picture = crewman.profession.icon
+        icon.tooltip = crewman.profession:name()
 
         local singleBar = selfCrewBars[i]
         singleBar.visible = true
@@ -690,15 +694,7 @@ function TransferCrewGoods.updateData()
             end
         end
 
-        local overlayName = caption
-        if p.crewman.specialist then
-            overlayName = string.format("%s (".."Level %u"%_t..")", overlayName, p.crewman.level)
-        elseif num == 1 then
-            overlayName = string.format("%s (%s)", overlayName, "Untrained"%_t)
-        else
-            overlayName = string.format("%s (%s)", overlayName, "Untrained /* plural */"%_t)
-        end
-        selfCrewLabels[i].caption = overlayName
+        selfCrewLabels[i].caption = caption
         selfCrewLabels[i].visible = true
 
         i = i + 1
@@ -921,8 +917,6 @@ function TransferCrewGoods.onPlayerTransferCargoTextEntered(textBox)
 
     local sender = Entity(Player().craftIndex)
     local maxAmount = playerCargoList[playerGoodIndexesByName[playerGoodSearchNames[cargoIndex]]].amount or 0
-
-    maxAmount = maxAmount or 0
 
     if newNumber > maxAmount then
         newNumber = maxAmount
