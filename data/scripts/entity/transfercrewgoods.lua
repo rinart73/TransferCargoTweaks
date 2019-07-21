@@ -1,11 +1,9 @@
 local Azimuth = include("azimuthlib-basic")
-local utf8 = include("azimuthlib-utf8")
-if not Azimuth or not utf8 then return end
+local AzimuthUTF8 = include("azimuthlib-utf8")
 
-
-local TransferCargoTweaksConfig, configOptions, isModified
+local TransferCargoTweaksConfig, transferCargoTweaks_configOptions, transferCargoTweaks_isModified
 if onClient() then -- different configs for client/server
-    configOptions = {
+    transferCargoTweaks_configOptions = {
       _version = {
         comment = "Config version. Don't touch",
         default = "1.6"
@@ -30,7 +28,7 @@ if onClient() then -- different configs for client/server
       }
     }
 else
-    configOptions = {
+    transferCargoTweaks_configOptions = {
       _version = {
         comment = "Config version. Don't touch",
         default = "1.1"
@@ -59,9 +57,9 @@ else
       }
     }
 end
-TransferCargoTweaksConfig, isModified = Azimuth.loadConfig("TransferCargoTweaks", configOptions)
-if isModified then
-    Azimuth.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, configOptions)
+TransferCargoTweaksConfig, transferCargoTweaks_isModified = Azimuth.loadConfig("TransferCargoTweaks", transferCargoTweaks_configOptions)
+if transferCargoTweaks_isModified then
+    Azimuth.saveConfig("TransferCargoTweaks", TransferCargoTweaksConfig, transferCargoTweaks_configOptions)
 end
 
 
@@ -99,9 +97,9 @@ local selfTrashButtons = {}
 local playerCargoList = {}
 local selfCargoList = {}
 
-local cargoLowerCache = {} -- because non-native utf8.lower is 32 times slower than string.lower
+local cargoLowerCache = {} -- because non-native AzimuthUTF8.lower is 32 times slower than string.lower
 
--- to utf8.lower query string only when it was changed
+-- to AzimuthUTF8.lower query string only when it was changed
 local playerPrevQuery = {}
 local selfPrevQuery = {}
 
@@ -142,7 +140,7 @@ local function playerSortGoodsFavorites(a, b)
     
     local afav = stationFavorites[1][goodNameA] or 1
     local bfav = stationFavorites[1][goodNameB] or 1
-    return afav > bfav or (afav == bfav and utf8.compare(a, b, true))
+    return afav > bfav or (afav == bfav and AzimuthUTF8.compare(a, b, true))
 end
 
 local function selfSortGoodsFavorites(a, b)
@@ -152,12 +150,12 @@ local function selfSortGoodsFavorites(a, b)
 
     local afav = stationFavorites[2][goodNameA] or 1
     local bfav = stationFavorites[2][goodNameB] or 1
-    return afav > bfav or (afav == bfav and utf8.compare(a, b, true))
+    return afav > bfav or (afav == bfav and AzimuthUTF8.compare(a, b, true))
 end
 
 local function playerSortGoods()
     if not playerFavoritesEnabled then
-        table.sort(playerGoodNames, utf8.comparesensitive)
+        table.sort(playerGoodNames, AzimuthUTF8.comparesensitive)
     else
         table.sort(playerGoodNames, playerSortGoodsFavorites)
     end
@@ -166,7 +164,7 @@ end
 
 local function selfSortGoods()
     if not selfFavoritesEnabled then
-        table.sort(selfGoodNames, utf8.comparesensitive)
+        table.sort(selfGoodNames, AzimuthUTF8.comparesensitive)
     else
         table.sort(selfGoodNames, selfSortGoodsFavorites)
     end
@@ -1263,9 +1261,11 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
         local receiverSquads = {receiverHangar:getSquads()}
 
         for _, newSquad in pairs(receiverSquads) do
-            if receiverHangar:getSquadFreeSlots(newSquad) > 0 then
-                receiverSquad = newSquad
-                break
+            if receiverHangar:fighterTypeMatchesSquad(fighter, newSquad) then
+                if receiverHangar:getSquadFreeSlots(newSquad) > 0 then
+                    receiverSquad = newSquad
+                    break
+                end
             end
         end
 
@@ -1280,8 +1280,12 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
     end
 
     if receiverHangar:getSquadFreeSlots(receiverSquad) > 0 then
-        senderHangar:removeFighter(index, squad)
-        receiverHangar:addFighter(receiverSquad, fighter)
+        if receiverHangar:fighterTypeMatchesSquad(fighter, receiverSquad) then
+            senderHangar:removeFighter(index, squad)
+            receiverHangar:addFighter(receiverSquad, fighter)
+        else
+            player:sendChatMessage("", 1, "The fighter type doesn't match the type of the squad."%_t)
+        end
     end
 
     invokeClientFunction(player, "updateData")
@@ -1344,11 +1348,6 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
             end
 
             for i = 0, senderHangar:getSquadFighters(squad) - 1 do
-                -- check squad space
-                if receiverHangar:getSquadFreeSlots(targetSquad) == 0 then
-                    player:sendChatMessage("", 1, "Not enough space in squad."%_t)
-                    break
-                end
 
                 local fighter = senderHangar:getFighter(squad, 0)
                 if not fighter then
@@ -1356,6 +1355,17 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
                     return
                 end
 
+                -- check squad type
+                if not receiverHangar:fighterTypeMatchesSquad(fighter, targetSquad) then
+                    player:sendChatMessage("", 1, "The fighter type doesn't match the type of the squad."%_t)
+                    break
+                end
+
+                -- check squad space
+                if receiverHangar:getSquadFreeSlots(targetSquad) == 0 then
+                    player:sendChatMessage("", 1, "Not enough space in squad."%_t)
+                    break
+                end
                 -- check hangar space
                 if receiverHangar.freeSpace < fighter.volume then
                     player:sendChatMessage("", 1, "Not enough space in hangar."%_t)
@@ -1633,7 +1643,7 @@ function TransferCrewGoods.playerCargoSearch()
             playerToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
         end
         playerPrevQuery[1] = query
-        playerPrevQuery[2] = utf8.lower(query)
+        playerPrevQuery[2] = AzimuthUTF8.lower(query)
     end
     query = playerPrevQuery[2]
 
@@ -1659,11 +1669,11 @@ function TransferCrewGoods.playerCargoSearch()
         local nameLowercase
         local actualDisplayName = good:displayName(amount)
         if not cargoLowerCache[actualDisplayName] then
-            cargoLowerCache[actualDisplayName] = utf8.lower(actualDisplayName)
+            cargoLowerCache[actualDisplayName] = AzimuthUTF8.lower(actualDisplayName)
         end
         nameLowercase = cargoLowerCache[actualDisplayName]
 
-        if query == "" or utf8.find(nameLowercase, query, 1, true, true) then
+        if query == "" or AzimuthUTF8.find(nameLowercase, query, 1, true, true) then
             rowNumber = rowNumber + 1
 
             local bar = playerCargoBars[rowNumber]
@@ -1715,7 +1725,7 @@ function TransferCrewGoods.playerCargoSearch()
 
             -- cargo overlay name
             -- adjust overlay name vertically (because we don't have built-in way to do this)
-            if utf8.len(name) > 28 then
+            if AzimuthUTF8.len(name) > 28 then
                 if not overlayName.reducedFont then
                     overlayName.reducedFont = true
                     overlayName.elem.fontSize = 8
@@ -1782,7 +1792,7 @@ function TransferCrewGoods.selfCargoSearch()
             selfToggleSearchBtn.icon = "data/textures/icons/transfercargotweaks/search.png"
         end
         selfPrevQuery[1] = query
-        selfPrevQuery[2] = utf8.lower(query)
+        selfPrevQuery[2] = AzimuthUTF8.lower(query)
     end
     query = selfPrevQuery[2]
 
@@ -1806,11 +1816,11 @@ function TransferCrewGoods.selfCargoSearch()
         local nameLowercase
         local actualDisplayName = good:displayName(amount)
         if not cargoLowerCache[actualDisplayName] then
-            cargoLowerCache[actualDisplayName] = utf8.lower(actualDisplayName)
+            cargoLowerCache[actualDisplayName] = AzimuthUTF8.lower(actualDisplayName)
         end
         nameLowercase = cargoLowerCache[actualDisplayName]
 
-        if query == "" or utf8.find(nameLowercase, query, 1, true, true) then
+        if query == "" or AzimuthUTF8.find(nameLowercase, query, 1, true, true) then
             rowNumber = rowNumber + 1
 
             local bar = selfCargoBars[rowNumber]
@@ -1861,7 +1871,7 @@ function TransferCrewGoods.selfCargoSearch()
             end
 
             -- overlay cargo name
-            if utf8.len(name) > 28 then
+            if AzimuthUTF8.len(name) > 28 then
                 if not overlayName.reducedFont then
                     overlayName.reducedFont = true
                     overlayName.elem.fontSize = 8
