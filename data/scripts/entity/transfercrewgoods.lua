@@ -66,7 +66,6 @@ end
 local favoritesFile = {} -- file with all stations of the server
 local stationFavorites = { {}, {} } -- current station only
 
-local crewProfessionIds = {1, 2, 3, 4, 5, 8, 9, 10, 11}
 -- crew workforce labels
 local playerCrewWorkforceLabels = {}
 local selfCrewWorkforceLabels = {}
@@ -214,20 +213,24 @@ function TransferCrewGoods.initUI()
         local leftForceHSplitter = UIHorizontalMultiSplitter(Rect(vSplit.left.lower + vec2(10, 0), vSplit.left.lower + vec2(vSplit.left.width - 20, 80)), 10, 0, 2)
         local rightForceHSplitter = UIHorizontalMultiSplitter(Rect(vSplit.right.lower + vec2(10, 0), vSplit.right.lower + vec2(vSplit.right.width - 10, 80)), 10, 0, 2)
         local i = 1
+        local profIcon, leftForceVSplitter, rightForceVSplitter, leftPartition, rightPartition, leftIcon, rightIcon
         for j = 0, 2 do
-            local leftForceVSplitter = UIVerticalMultiSplitter(leftForceHSplitter:partition(j), 10, 0, 2)
-            local rightForceVSplitter = UIVerticalMultiSplitter(rightForceHSplitter:partition(j), 10, 0, 2)
-            for k = 0, 2 do
-                local leftPartition = leftForceVSplitter:partition(k)
-                local rightPartition = rightForceVSplitter:partition(k)
-                local leftIcon = crewTab:createPicture(Rect(leftPartition.lower, leftPartition.lower + vec2(20, 20)), CrewProfession(crewProfessionIds[i]).icon)
-                leftIcon.isIcon = 1
-                local rightIcon = crewTab:createPicture(Rect(rightPartition.lower, rightPartition.lower + vec2(20, 20)), CrewProfession(crewProfessionIds[i]).icon)
-                rightIcon.isIcon = 1
+            leftForceVSplitter = UIVerticalMultiSplitter(leftForceHSplitter:partition(j), 10, 0, 3)
+            rightForceVSplitter = UIVerticalMultiSplitter(rightForceHSplitter:partition(j), 10, 0, 3)
+            for k = 0, 3 do
+                if i < 12 then
+                    profIcon = CrewProfession(i).icon
+                    leftPartition = leftForceVSplitter:partition(k)
+                    rightPartition = rightForceVSplitter:partition(k)
+                    leftIcon = crewTab:createPicture(Rect(leftPartition.lower, leftPartition.lower + vec2(20, 20)), profIcon)
+                    leftIcon.isIcon = 1
+                    rightIcon = crewTab:createPicture(Rect(rightPartition.lower, rightPartition.lower + vec2(20, 20)), profIcon)
+                    rightIcon.isIcon = 1
 
-                playerCrewWorkforceLabels[crewProfessionIds[i]] = crewTab:createLabel(Rect(leftPartition.lower + vec2(30, 2), leftPartition.upper), "0/0", 12)
-                selfCrewWorkforceLabels[crewProfessionIds[i]] = crewTab:createLabel(Rect(rightPartition.lower + vec2(30, 2), rightPartition.upper), "0/0", 12)
-                i = i + 1
+                    playerCrewWorkforceLabels[i] = crewTab:createLabel(Rect(leftPartition.lower + vec2(30, 2), leftPartition.upper), "0/0", 11)
+                    selfCrewWorkforceLabels[i] = crewTab:createLabel(Rect(rightPartition.lower + vec2(30, 2), rightPartition.upper), "0/0", 11)
+                    i = i + 1
+                end
             end
         end
     end
@@ -717,19 +720,17 @@ function TransferCrewGoods.updateData()
             selfWorkforce[k.value] = v
         end
 
-        local profId
-        for i = 1, #crewProfessionIds do
-            profId = crewProfessionIds[i]
+        for i = 1, 11 do
             -- player
-            if not playerMinWorkforce[profId] then playerMinWorkforce[profId] = 0 end
-            if not playerWorkforce[profId] then playerWorkforce[profId] = 0 end
-            playerCrewWorkforceLabels[profId].caption = playerWorkforce[profId] .. "/" .. playerMinWorkforce[profId]
-            playerCrewWorkforceLabels[profId].color = playerWorkforce[profId] < playerMinWorkforce[profId] and ColorInt(0xffff2626) or ColorInt(0xffe0e0e0)
+            if not playerMinWorkforce[i] then playerMinWorkforce[i] = 0 end
+            if not playerWorkforce[i] then playerWorkforce[i] = 0 end
+            playerCrewWorkforceLabels[i].caption = playerWorkforce[i] .. "/" .. playerMinWorkforce[i]
+            playerCrewWorkforceLabels[i].color = playerWorkforce[i] < playerMinWorkforce[i] and ColorInt(0xffff2626) or ColorInt(0xffe0e0e0)
             -- self
-            if not selfMinWorkforce[profId] then selfMinWorkforce[profId] = 0 end
-            if not selfWorkforce[profId] then selfWorkforce[profId] = 0 end
-            selfCrewWorkforceLabels[profId].caption = selfWorkforce[profId] .. "/" .. selfMinWorkforce[profId]
-            selfCrewWorkforceLabels[profId].color = selfWorkforce[profId] < selfMinWorkforce[profId] and ColorInt(0xffff2626) or ColorInt(0xffe0e0e0)
+            if not selfMinWorkforce[i] then selfMinWorkforce[i] = 0 end
+            if not selfWorkforce[i] then selfWorkforce[i] = 0 end
+            selfCrewWorkforceLabels[i].caption = selfWorkforce[i] .. "/" .. selfMinWorkforce[i]
+            selfCrewWorkforceLabels[i].color = selfWorkforce[i] < selfMinWorkforce[i] and ColorInt(0xffff2626) or ColorInt(0xffe0e0e0)
         end
     end
 
