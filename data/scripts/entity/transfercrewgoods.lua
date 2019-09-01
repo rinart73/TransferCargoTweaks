@@ -4,57 +4,20 @@ local AzimuthUTF8 = include("azimuthlib-utf8")
 local TransferCargoTweaksConfig, transferCargoTweaks_configOptions, transferCargoTweaks_isModified
 if onClient() then -- different configs for client/server
     transferCargoTweaks_configOptions = {
-      _version = {
-        comment = "Config version. Don't touch",
-        default = "1.6"
-      },
-      CargoRowsAmount = {
-        comment = "Increase if you have a lot of goods in your cargo storage.",
-        default = 100,
-        min = 10,
-        max = 300
-      },
-      EnableFavorites = {
-        comment = "Enable favorites/trash system.",
-        default = true
-      },
-      ToggleFavoritesByDefault = {
-        comment = "If favorites system is enabled, it will be turned on by default when you open transfer window.",
-        default = true
-      },
-      EnableCrewWorkforcePreview = {
-        comment = "Show current an minimal crew workforce in crew transfer tab.",
-        default = true
-      }
+      _version = { default = "1.6", comment = "Config version. Don't touch" },
+      CargoRowsAmount = { default = 100, min = 10, max = 300, comment = "Increase if you have a lot of goods in your cargo storage." },
+      EnableFavorites = { default = true, comment = "Enable favorites/trash system." },
+      ToggleFavoritesByDefault = { default = true, comment = "If favorites system is enabled, it will be turned on by default when you open transfer window." },
+      EnableCrewWorkforcePreview = { default = true, comment = "Show current an minimal crew workforce in crew transfer tab." }
     }
 else
     transferCargoTweaks_configOptions = {
-      _version = {
-        comment = "Config version. Don't touch",
-        default = "1.1"
-      },
-      FightersMaxTransferDistance = {
-        comment = "Specify max distance for transferring fighters.",
-        default = 20,
-        min = 2,
-        max = 20000
-      },
-      CargoMaxTransferDistance = {
-        comment = "Specify max distance for transferring cargo.",
-        default = 20,
-        min = 2,
-        max = 20000
-      },
-      CrewMaxTransferDistance = {
-        comment = "Specify max distance for transferring crew.",
-        default = 20,
-        min = 2,
-        max = 20000
-      },
-      CheckIfDocked = {
-        comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance.",
-        default = true
-      }
+      _version = { default = "1.1", comment = "Config version. Don't touch" },
+      FightersMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring fighters." },
+      CargoMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring cargo." },
+      CrewMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring crew." },
+      CheckIfDocked = { default = true, comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance." },
+      RequireAlliancePrivileges = { default = true, comment = "If enabled, taking/adding goods, fighters and crew to/from alliance ships/stations will require 'Manage Ships' and 'Manage Stations' alliance privileges." }
     }
 end
 TransferCargoTweaksConfig, transferCargoTweaks_isModified = Azimuth.loadConfig("TransferCargoTweaks", transferCargoTweaks_configOptions)
@@ -970,6 +933,19 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
         return
     end
 
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
+    end
+
     -- check distance
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
@@ -1018,6 +994,19 @@ function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther)
     if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("", 1, "You don't own this craft."%_t)
         return
+    end
+
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
     end
 
     -- check distance
@@ -1118,6 +1107,19 @@ function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, am
         return
     end
 
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
+    end
+
     -- check distance
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
         if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
@@ -1168,6 +1170,19 @@ function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther)
     if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("", 1, "You don't own this craft."%_t)
         return
+    end
+
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
     end
 
     -- check distance
@@ -1221,6 +1236,19 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
     if senderEntity.factionIndex ~= callingPlayer and senderEntity.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("", 1, "You don't own this craft."%_t)
         return
+    end
+
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
     end
 
     -- check distance
@@ -1305,6 +1333,19 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
     if senderEntity.factionIndex ~= callingPlayer and senderEntity.factionIndex ~= player.allianceIndex then
         player:sendChatMessage("", 1, "You don't own this craft."%_t)
         return
+    end
+
+    if TransferCargoTweaksConfig.RequireAlliancePrivileges then
+        local requiredPrivileges = {}
+        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
+        end
+        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
+        end
+        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
+            return
+        end
     end
 
     -- check distance
