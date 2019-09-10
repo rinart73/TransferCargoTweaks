@@ -26,6 +26,12 @@ if transferCargoTweaks_isModified then
 end
 
 
+local transferCargoTweaks_gameVersion = GameVersion()
+local transferCargoTweaks_post0_26_1 = false
+if transferCargoTweaks_gameVersion.minor > 26 or (transferCargoTweaks_gameVersion.minor == 26 and transferCargoTweaks_gameVersion.patch >= 1) then
+    transferCargoTweaks_post0_26_1 = true
+end
+
 local favoritesFile = {} -- file with all stations of the server
 local stationFavorites = { {}, {} } -- current station only
 
@@ -947,12 +953,17 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.CrewMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
+          and sender:getNearestDistance(receiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CrewMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1010,12 +1021,17 @@ function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther)
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.CrewMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
+          and sender:getNearestDistance(receiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CrewMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1121,12 +1137,17 @@ function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, am
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.CargoMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
+          and sender:getNearestDistance(receiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CargoMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1186,12 +1207,17 @@ function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther)
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.CargoMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if (sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)) then
+        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
+          and sender:getNearestDistance(receiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
             return
         end
-    elseif sender:getNearestDistance(receiver) > TransferCargoTweaksConfig.CargoMaxTransferDistance then
+    elseif sender:getNearestDistance(receiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1240,10 +1266,10 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
 
     if TransferCargoTweaksConfig.RequireAlliancePrivileges then
         local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+        if (senderEntity.allianceOwned and senderEntity.isShip) or (entityReceiver.allianceOwned and entityReceiver.isShip) then
             requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
         end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+        if (senderEntity.allianceOwned and senderEntity.isStation) or (entityReceiver.allianceOwned and entityReceiver.isStation) then
             requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
         end
         if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
@@ -1252,12 +1278,17 @@ function TransferCrewGoods.transferFighter(sender, squad, index, receiver, recei
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.FightersMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, senderEntity.transporterRange or 0, entityReceiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
-        if (senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)) then
+        if ((senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)))
+          and senderEntity:getNearestDistance(entityReceiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
             return
         end
-    elseif senderEntity:getNearestDistance(entityReceiver) > TransferCargoTweaksConfig.FightersMaxTransferDistance then
+    elseif senderEntity:getNearestDistance(entityReceiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
@@ -1337,10 +1368,10 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
 
     if TransferCargoTweaksConfig.RequireAlliancePrivileges then
         local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
+        if (senderEntity.allianceOwned and senderEntity.isShip) or (entityReceiver.allianceOwned and entityReceiver.isShip) then
             requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
         end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
+        if (senderEntity.allianceOwned and senderEntity.isStation) or (entityReceiver.allianceOwned and entityReceiver.isStation) then
             requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
         end
         if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
@@ -1349,12 +1380,17 @@ function TransferCrewGoods.transferAllFighters(sender, receiver)
     end
 
     -- check distance
+    local transferDistance = TransferCargoTweaksConfig.FightersMaxTransferDistance
+    if transferCargoTweaks_post0_26_1 then
+        transferDistance = math.max(transferDistance, senderEntity.transporterRange or 0, entityReceiver.transporterRange or 0)
+    end
     if TransferCargoTweaksConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
-        if (senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)) then
+        if ((senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)))
+          and senderEntity:getNearestDistance(entityReceiver) > transferDistance then
             player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
             return
         end
-    elseif senderEntity:getNearestDistance(entityReceiver) > TransferCargoTweaksConfig.FightersMaxTransferDistance then
+    elseif senderEntity:getNearestDistance(entityReceiver) > transferDistance then
         player:sendChatMessage("", 1, "You're too far away."%_t)
         return
     end
