@@ -139,6 +139,22 @@ local function selfSortGoods()
     TransferCrewGoods.selfCargoSearch()
 end
 
+local function getGoodColor(good)
+    if good.dangerous then
+        return ColorRGB(1, 1, 0)
+    end
+    if good.illegal then
+        return ColorRGB(1, 0, 0)
+    end
+    if good.stolen then
+        return ColorRGB(1, 0.721, 0)
+    end
+    if good.suspicious then
+        return ColorRGB(1, 0.443, 0)
+    end
+    return ColorRGB(1, 1, 1)
+end
+
 -- OVERRIDDEN FUNCTIONS
 
 function TransferCrewGoods.initUI()
@@ -1815,6 +1831,7 @@ function TransferCrewGoods.playerCargoSearch()
                 overlayName.elem.rect = Rect(overlayName.elem.rect.topLeft + vec2(0, -3), overlayName.elem.rect.bottomRight)
             end
             overlayName.elem.caption = name
+            overlayName.elem.color = getGoodColor(good)
         end
     end
 
@@ -1961,6 +1978,7 @@ function TransferCrewGoods.selfCargoSearch()
                 overlayName.elem.rect = Rect(overlayName.elem.rect.topLeft + vec2(0, -3), overlayName.elem.rect.bottomRight)
             end
             overlayName.elem.caption = name
+            overlayName.elem.color = getGoodColor(good)
         end
     end
 
