@@ -1,14 +1,14 @@
-# ========== mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua ==========
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+# ========== data\scripts\entity\transfercrewgoods.lua ==========
+#: data\scripts\entity\transfercrewgoods.lua:
 msgid "You must be docked to the station to transfer crew."
 msgstr "Du musst an die Station gedockt sein, um die Mannschaft zu transferieren."
 
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+#: data\scripts\entity\transfercrewgoods.lua:
 msgid "You must be docked to the station to transfer cargo."
-msgstr "Du musst an die Station gedockt sein, um die Fracht zu ?bertragen."
+msgstr "Du musst an die Station gedockt sein, um die Fracht zu bertragen."
 
-#: mods\TransferCargoTweaks\data\scripts\entity\transfercrewgoods.lua:
+#: data\scripts\entity\transfercrewgoods.lua:
 msgid "You must be docked to the station to transfer fighters."
-msgstr "Du musst an die Station gedockt sein, um die J?ger zu ?bertragen."
+msgstr "Du musst an die Station gedockt sein, um die Jäger zu bertragen."
 
 
