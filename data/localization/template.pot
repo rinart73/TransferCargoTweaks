@@ -3,16 +3,3 @@
 msgid "In the crew and cargo tabs you can use hotkeys to move\ncertain amounts of items. Simply hold one of the\nfollowing key combinations and click '>>':\nCtrl = 5\nShift = 10\nAlt = 50\nCtrl + Shift = 100\nCtrl + Alt = 250\nShift + Alt = 500\nCtrl + Shift + Alt = 1000"
 msgstr ""
 
-#: data\scripts\entity\transfercrewgoods.lua:
-msgid "You must be docked to the station to transfer crew."
-msgstr ""
-
-#: data\scripts\entity\transfercrewgoods.lua:
-msgid "You must be docked to the station to transfer cargo."
-msgstr ""
-
-#: data\scripts\entity\transfercrewgoods.lua:
-msgid "You must be docked to the station to transfer fighters."
-msgstr ""
-
-

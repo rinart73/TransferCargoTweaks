@@ -287,7 +287,7 @@ function TransferCrewGoods.initUI() -- overridden
 
     tct_tabbedWindow = window:createTabbedWindow(Rect(vec2(10, 10), size - 10))
     tct_tabbedWindow.onSelectedFunction = "tct_onTabbedWindowSelected"
-    local crewTab = tct_tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Exchange crew"%_t)
+    local crewTab = tct_tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Exchange Crew"%_t)
     tct_crewTabIndex = crewTab.index
 
     local vSplit = UIVerticalSplitter(Rect(crewTab.size), 10, 0, 0.5)
@@ -412,7 +412,7 @@ function TransferCrewGoods.initUI() -- overridden
         textboxIndexByButton[button.index] = box.index
     end
 
-    local cargoTab = tct_tabbedWindow:createTab("Cargo"%_t, "data/textures/icons/trade.png", "Exchange cargo"%_t)
+    local cargoTab = tct_tabbedWindow:createTab("Cargo"%_t, "data/textures/icons/trade.png", "Exchange Cargo"%_t)
     tct_cargoTabIndex = cargoTab.index
 
     -- have to use "left" twice here since the coordinates are relative and the UI would be displaced to the right otherwise
@@ -453,9 +453,11 @@ function TransferCrewGoods.initUI() -- overridden
     tct_playerCargoSearchBox = tct_leftCargoFrame:createTextBox(Rect(12, playerTransferAllCargoButton.height+22, tct_leftCargoFrame.width-33, playerTransferAllCargoButton.height+selfTotalCargoBar.height+18), "tct_playerCargoSearch")
     tct_playerCargoSearchBox.backgroundText = "Search"%_t
     tct_playerCargoSearchBox.visible = false
+    tct_playerCargoSearchBox.layer = 1
     tct_selfCargoSearchBox = tct_rightCargoFrame:createTextBox(Rect(12, selfTransferAllCargoButton.height+22, tct_rightCargoFrame.width-33, selfTransferAllCargoButton.height+selfTotalCargoBar.height+18), "tct_selfCargoSearch")
     tct_selfCargoSearchBox.backgroundText = "Search"%_t
     tct_selfCargoSearchBox.visible = false
+    tct_selfCargoSearchBox.layer = 1
 
     if TCTConfig.EnableFavorites then
         tct_playerToggleFavoritesBtn = tct_leftCargoFrame:createButton(Rect(45, 10, 75, 45), "", "tct_onPlayerToggleFavoritesPressed")
@@ -477,60 +479,9 @@ function TransferCrewGoods.initUI() -- overridden
     tct_selfTrashButtons = {}
 
     -- create fighters tab
-    local fightersTab = tct_tabbedWindow:createTab("Fighters"%_t, "data/textures/icons/fighter.png", "Exchange fighters"%_t)
-    tct_fightersTabIndex = fightersTab.index
-
-    local leftLister = UIVerticalLister(vSplit.left, 0, 0)
-    local rightLister = UIVerticalLister(vSplit.right, 0, 0)
-
-    leftLister.marginLeft = 5
-    rightLister.marginLeft = 5
-
-    playerTransferAllFightersButton = fightersTab:createButton(Rect(), "Transfer All >>"%_t, "onPlayerTransferAllFightersPressed")
-    leftLister:placeElementCenter(playerTransferAllFightersButton)
-
-    selfTransferAllFightersButton = fightersTab:createButton(Rect(), "<< Transfer All"%_t, "onSelfTransferAllFightersPressed")
-    rightLister:placeElementCenter(selfTransferAllFightersButton)
-
-    for i = 1, 10 do
-        -- left side (player)
-        local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 18))
-        local label = fightersTab:createLabel(rect, "", 16)
-        playerFighterLabels[i] = label
-
-        local rect = leftLister:placeCenter(vec2(leftLister.inner.width, 35))
-        rect.upper = vec2(rect.lower.x + 376, rect.upper.y)
-        local selection = fightersTab:createSelection(rect, 12)
-        selection.dropIntoEnabled = true
-        selection.dragFromEnabled = true
-        selection.entriesSelectable = false
-        selection.onReceivedFunction = "onFighterReceived"
-        selection.onClickedFunction = "onFighterClicked"
-        selection.padding = 4
-
-        playerFighterSelections[i] = selection
-        isPlayerShipBySelection[selection.index] = true
-        squadIndexBySelection[selection.index] = i - 1
-
-        -- right side (self)
-        local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 18))
-        local label = fightersTab:createLabel(rect, "", 16)
-        selfFighterLabels[i] = label
-
-        local rect = rightLister:placeCenter(vec2(rightLister.inner.width, 35))
-        rect.upper = vec2(rect.lower.x + 376, rect.upper.y)
-        local selection = fightersTab:createSelection(rect, 12)
-        selection.dropIntoEnabled = true
-        selection.dragFromEnabled = true
-        selection.entriesSelectable = false
-        selection.onReceivedFunction = "onFighterReceived"
-        selection.onClickedFunction = "onFighterClicked"
-        selection.padding = 4
-
-        selfFighterSelections[i] = selection
-        isPlayerShipBySelection[selection.index] = false
-        squadIndexBySelection[selection.index] = i - 1
-    end
+    TransferCrewGoods.createFightersTab(tct_tabbedWindow)
+    -- create torpedoes tab
+    TransferCrewGoods.createTorpedoesTab(tct_tabbedWindow)
 end
 
 function TransferCrewGoods.onShowWindow() -- overridden
@@ -594,10 +545,10 @@ end
 function TransferCrewGoods.updateData() -- overridden
     local playerShip = Player().craft
     local ship = Entity()
-    local currentTabIndex = tct_tabbedWindow:getActiveTab()
-    currentTabIndex = currentTabIndex and currentTabIndex.index or -1
+    local currentTabName = tct_tabbedWindow:getActiveTab()
+    currentTabName = currentTabName and currentTabName.name or ''
 
-    if currentTabIndex == tct_crewTabIndex then -- update crew info
+    if currentTabName == "Crew"%_t then -- update crew info
 
         playerTotalCrewBar:clear()
         selfTotalCrewBar:clear()
@@ -802,7 +753,7 @@ function TransferCrewGoods.updateData() -- overridden
             end
         end
 
-    elseif currentTabIndex == tct_cargoTabIndex then -- update cargo info
+    elseif currentTabName == "Cargo"%_t then -- update cargo info
 
         playerTotalCargoBar:clear()
         selfTotalCargoBar:clear()
@@ -844,7 +795,7 @@ function TransferCrewGoods.updateData() -- overridden
         tct_playerSortGoods()
         tct_selfSortGoods()
 
-    elseif currentTabIndex == tct_fightersTabIndex then -- update fighter info
+    elseif currentTabName == "Fighters"%_t then -- update fighter info
 
         for i = 1, #playerFighterLabels do
             playerFighterLabels[i].visible = false
@@ -915,61 +866,18 @@ function TransferCrewGoods.updateData() -- overridden
             end
         end
 
+    elseif currentTabName == "Torpedoes"%_t then -- update torpedoes
+        TransferCrewGoods.updateTorpedoesUI(playerShip, ship)
     end
 end
 
 -- CALLBACKS --
 
 function TransferCrewGoods.renderUI() -- overridden
-    local currentTabIndex = tct_tabbedWindow:getActiveTab()
-    currentTabIndex = currentTabIndex and currentTabIndex.index or -1
+    local currentTabName = tct_tabbedWindow:getActiveTab()
+    currentTabName = currentTabName and currentTabName.name or ''
 
-    if currentTabIndex == tct_fightersTabIndex then -- render fighters stuff
-
-        local activeSelection
-        for _, selection in pairs(playerFighterSelections) do
-            if selection.mouseOver then
-                activeSelection = selection
-                break
-            end
-        end
-
-        if not activeSelection then
-            for _, selection in pairs(selfFighterSelections) do
-                if selection.mouseOver then
-                    activeSelection = selection
-                    break
-                end
-            end
-        end
-
-        if activeSelection then
-            local mousePos = Mouse().position
-            local key = activeSelection:getMouseOveredKey()
-            if key.y ~= 0 then return end
-            if key.x < 0 then return end
-
-            local entity
-            if isPlayerShipBySelection[activeSelection.index] then
-                entity = Player().craftIndex
-            else
-                entity = Entity().index
-            end
-
-            if not entity then return end
-
-            local hangar = Hangar(entity)
-            if not hangar then return end
-
-            local fighter = hangar:getFighter(squadIndexBySelection[activeSelection.index], key.x)
-            if not fighter then return end
-
-            local renderer = TooltipRenderer(makeFighterTooltip(fighter))
-            renderer:drawMouseTooltip(mousePos)
-            return
-        end
-
-    elseif currentTabIndex == tct_cargoTabIndex then -- render cargo stuff
+    if currentTabName == "Cargo"%_t then -- cargo
 
         if TCTConfig.EnableFavorites then
 
@@ -1116,6 +1024,99 @@ function TransferCrewGoods.renderUI() -- overridden
             end
             tct_selfLastHoveredRow = selfHoveredRow
 
+        end
+
+    elseif currentTabName == "Fighters"%_t then -- fighters
+
+        local activeSelection
+        for _, selection in pairs(playerFighterSelections) do
+            if selection.mouseOver then
+                activeSelection = selection
+                break
+            end
+        end
+        if not activeSelection then
+            for _, selection in pairs(selfFighterSelections) do
+                if selection.mouseOver then
+                    activeSelection = selection
+                    break
+                end
+            end
+        end
+        if activeSelection then
+            local mousePos = Mouse().position
+            local key = activeSelection:getMouseOveredKey()
+            if key.y ~= 0 then return end
+            if key.x < 0 then return end
+
+            local entity
+            if isPlayerShipBySelection[activeSelection.index] then
+                entity = Player().craftIndex
+            else
+                entity = Entity().index
+            end
+
+            if not entity then return end
+
+            local hangar = Hangar(entity)
+            if not hangar then return end
+
+            local fighter = hangar:getFighter(squadIndexBySelection[activeSelection.index], key.x)
+            if not fighter then return end
+
+            local renderer = TooltipRenderer(makeFighterTooltip(fighter))
+            renderer:drawMouseTooltip(mousePos)
+        end
+
+    elseif currentTabName == "Torpedoes"%_t then -- torpedoes
+
+        for _, selection in pairs(playerTorpedoShafts) do
+            if selection.mouseOver then
+                activeSelection = selection
+                break
+            end
+        end
+        if not activeSelection then
+            if playerTorpedoStorage.mouseOver then
+                activeSelection = playerTorpedoStorage
+            end
+        end
+        if not activeSelection then
+            for _, selection in pairs(selfTorpedoShafts) do
+                if selection.mouseOver then
+                    activeSelection = selection
+                    break
+                end
+            end
+        end
+        if not activeSelection then
+            if selfTorpedoStorage.mouseOver then
+                activeSelection = selfTorpedoStorage
+            end
+        end
+        if activeSelection then
+            local mousePos = Mouse().position
+            local key = activeSelection:getMouseOveredKey()
+            if key.x < 0 or key.y < 0 then return end
+
+            local entity
+            if isPlayerShipBySelection[activeSelection.index] then
+                entity = Player().craftIndex
+            else
+                entity = Entity().index
+            end
+
+            if not entity then return end
+
+            local launcher = TorpedoLauncher(entity)
+            if not launcher then return end
+
+--            print("index: " .. tostring(key.x + key.y * activeSelection.maxHorizontalEntries))
+            local torpedo = launcher:getTorpedo(key.x + key.y * activeSelection.maxHorizontalEntries, torpedoShaftIndexBySelection[activeSelection.index])
+            if not torpedo then return end
+
+            local renderer = TooltipRenderer(makeTorpedoTooltip(torpedo))
+            renderer:drawMouseTooltip(mousePos)
         end
 
     end
@@ -1665,15 +1666,21 @@ else -- onServer
 
 
 local configOptions = {
-  _version = { default = "1.1", comment = "Config version. Don't touch" },
-  FightersMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring fighters." },
-  CargoMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring cargo." },
-  CrewMaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring crew." },
-  CheckIfDocked = { default = true, comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance." },
-  RequireAlliancePrivileges = { default = true, comment = "If enabled, taking/adding goods, fighters and crew to/from alliance ships/stations will require 'Manage Ships' and 'Manage Stations' alliance privileges." }
+  _version = { default = "1.9", comment = "Config version. Don't touch" },
+  MaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring crew, cargo, fighters and torpedos." },
+  CheckIfDocked = { default = true, comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance." }
 }
 local isModified
 TCTConfig, isModified = Azimuth.loadConfig("TransferCargoTweaks", configOptions)
+if TCTConfig._version == "1.1" then
+    isModified = true
+    TCTConfig._version = "1.9"
+    TCTConfig.MaxTransferDistance = TCTConfig.CargoMaxTransferDistance or 20
+    TCTConfig.FightersMaxTransferDistance = nil
+    TCTConfig.CargoMaxTransferDistance = nil
+    TCTConfig.CrewMaxTransferDistance = nil
+    TCTConfig.RequireAlliancePrivileges = nil
+end
 if isModified then
     Azimuth.saveConfig("TransferCargoTweaks", TCTConfig, configOptions)
 end
@@ -1695,42 +1702,13 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     local player = Player(callingPlayer)
     if not player then return end
 
-    if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
-    end
-
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
-    end
-
-    -- check distance
-    local transferDistance = math.max(TCTConfig.CrewMaxTransferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
-          and sender:getNearestDistance(receiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
-            return
-        end
-    elseif sender:getNearestDistance(receiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
-    end
+    if not TransferCrewGoods.checkPermissionsAndDistance(player, sender, receiver) then return end
 
     local sorted = TransferCrewGoods.getSortedCrewmen(sender)
 
     local p = sorted[crewmanIndex]
     if not p then
-        eprint("bad crewman")
+--        print("bad crewman")
         return
     end
 
@@ -1744,400 +1722,38 @@ function TransferCrewGoods.transferCrew(crewmanIndex, otherIndex, selfToOther, a
     receiver:addCrew(amount, crewman)
 end
 
-function TransferCrewGoods.transferAllCrew(otherIndex, selfToOther) -- overridden
-    local sender
-    local receiver
-
-    if selfToOther then
-        sender = Entity()
-        receiver = Entity(otherIndex)
-    else
-        sender = Entity(otherIndex)
-        receiver = Entity()
+function TransferCrewGoods.checkPermissionsAndDistance(player, source, target)
+    if source.__avoriontype == "Uuid" then
+        source = Entity(source)
     end
 
-    local player = Player(callingPlayer)
-    if not player then return end
-
-    if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
+    if target.__avoriontype == "Uuid" then
+        target = Entity(target)
     end
 
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
+    if not valid(source) or not valid(target) then
+        return false
     end
+
+    if source.factionIndex ~= callingPlayer and source.factionIndex ~= player.allianceIndex then
+        player:sendChatMessage("", ChatMessageType.Error, "You don't own this craft."%_t)
+        return false
+    end
+
+    -- check permissions
+    if not checkEntityInteractionPermissions(source, AlliancePrivilege.ManageShips) then return false end
+    if not checkEntityInteractionPermissions(target, AlliancePrivilege.ManageShips) then return false end
 
     -- check distance
-    local transferDistance = math.max(TCTConfig.CrewMaxTransferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
-          and sender:getNearestDistance(receiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer crew."%_t)
-            return
-        end
-    elseif sender:getNearestDistance(receiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
+    if TCTConfig.CheckIfDocked and ((source.isStation and source:isDocked(target)) or (target.isStation and target:isDocked(source))) then
+        return true
+    end
+    if source:getNearestDistance(target) > math.max(TCTConfig.MaxTransferDistance, source.transporterRange, target.transporterRange) then
+        player:sendChatMessage("", ChatMessageType.Error, "You're too far away."%_t)
+        return false
     end
 
-    local sorted = TransferCrewGoods.getSortedCrewmen(sender)
-    for _, p in pairs(sorted) do
-        -- transfer
-        sender:removeCrew(p.num, p.crewman)
-        receiver:addCrew(p.num, p.crewman)
-    end
-end
-
-function TransferCrewGoods.transferCargo(cargoIndex, otherIndex, selfToOther, amount) -- overridden
-    local sender
-    local receiver
-
-    if selfToOther then
-        sender = Entity()
-        receiver = Entity(otherIndex)
-    else
-        sender = Entity(otherIndex)
-        receiver = Entity()
-    end
-
-    local player = Player(callingPlayer)
-    if not player then return end
-
-    if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
-    end
-
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
-    end
-
-    -- check distance
-    local transferDistance = math.max(TCTConfig.CargoMaxTransferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
-          and sender:getNearestDistance(receiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
-            return
-        end
-    elseif sender:getNearestDistance(receiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
-    end
-
-    -- get the cargo
-    local good, availableAmount = sender:getCargo(cargoIndex)
-
-    -- make sure sending ship has the cargo
-    if not good or not availableAmount then return end
-    amount = math.min(amount, availableAmount)
-
-    -- make sure receiving ship has enough space
-    if receiver.freeCargoSpace < good.size * amount then
-        player:sendChatMessage("", 1, "Not enough space on the other craft."%_t)
-        return
-    end
-
-    -- transfer
-    sender:removeCargo(good, amount)
-    receiver:addCargo(good, amount)
-
-    invokeClientFunction(player, "updateData")
-end
-
-function TransferCrewGoods.transferAllCargo(otherIndex, selfToOther) -- overridden
-    local sender
-    local receiver
-
-    if selfToOther then
-        sender = Entity()
-        receiver = Entity(otherIndex)
-    else
-        sender = Entity(otherIndex)
-        receiver = Entity()
-    end
-
-    local player = Player(callingPlayer)
-    if not player then return end
-
-    if sender.factionIndex ~= callingPlayer and sender.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
-    end
-
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (sender.allianceOwned and sender.isShip) or (receiver.allianceOwned and receiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (sender.allianceOwned and sender.isStation) or (receiver.allianceOwned and receiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
-    end
-
-    -- check distance
-    local transferDistance = math.max(TCTConfig.CargoMaxTransferDistance, sender.transporterRange or 0, receiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (sender.isStation or receiver.isStation) then
-        if ((sender.isStation and not sender:isDocked(receiver)) or (receiver.isStation and not receiver:isDocked(sender)))
-          and sender:getNearestDistance(receiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer cargo."%_t)
-            return
-        end
-    elseif sender:getNearestDistance(receiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
-    end
-
-    -- get the cargo
-    local cargos = sender:getCargos()
-    local cargoTransferred = false
-
-    for good, amount in pairs(cargos) do
-        -- make sure receiving ship has enough space
-        if receiver.freeCargoSpace < good.size * amount then
-            -- transfer as much as possible
-            amount = math.floor(receiver.freeCargoSpace / good.size)
-
-            if amount == 0 then
-                player:sendChatMessage("", 1, "Not enough space on the other craft."%_t)
-                break;
-            end
-        end
-
-        -- transfer
-        sender:removeCargo(good, amount)
-        receiver:addCargo(good, amount)
-        cargoTransferred = true
-    end
-
-    if cargoTransferred then
-        invokeClientFunction(player, "updateData")
-    end
-end
-
-function TransferCrewGoods.transferFighter(sender, squad, index, receiver, receiverSquad) -- overridden
-    if not onServer() then return end
-
-    local player = Player(callingPlayer)
-    if not player then return end
-
-    local entityReceiver = Entity(receiver)
-
-    local senderEntity = Entity(sender)
-    if senderEntity.factionIndex ~= callingPlayer and senderEntity.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
-    end
-
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (senderEntity.allianceOwned and senderEntity.isShip) or (entityReceiver.allianceOwned and entityReceiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (senderEntity.allianceOwned and senderEntity.isStation) or (entityReceiver.allianceOwned and entityReceiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
-    end
-
-    -- check distance
-    local transferDistance = math.max(TCTConfig.FightersMaxTransferDistance, senderEntity.transporterRange or 0, entityReceiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
-        if ((senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)))
-          and senderEntity:getNearestDistance(entityReceiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
-            return
-        end
-    elseif senderEntity:getNearestDistance(entityReceiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
-    end
-
-    local senderHangar = Hangar(sender)
-    if not senderHangar then
-        player:sendChatMessage("", 1, "Missing hangar."%_t)
-        return
-    end
-    local receiverHangar = Hangar(receiver)
-    if not receiverHangar then
-        player:sendChatMessage("", 1, "Missing hangar."%_t)
-        return
-    end
-
-    local fighter = senderHangar:getFighter(squad, index)
-    if not fighter then
-        return
-    end
-
-    if sender ~= receiver and receiverHangar.freeSpace < fighter.volume then
-        player:sendChatMessage("", 1, "Not enough space in hangar."%_t)
-        return
-    end
-
-    if receiverHangar:getSquadFreeSlots(receiverSquad) == 0 then
-        receiverSquad = nil
-
-        -- find other squad
-        local receiverSquads = {receiverHangar:getSquads()}
-
-        for _, newSquad in pairs(receiverSquads) do
-            if receiverHangar:fighterTypeMatchesSquad(fighter, newSquad) then
-                if receiverHangar:getSquadFreeSlots(newSquad) > 0 then
-                    receiverSquad = newSquad
-                    break
-                end
-            end
-        end
-
-        if receiverSquad == nil then
-            if #receiverSquads < receiverHangar.maxSquads then
-                receiverSquad = receiverHangar:addSquad("New Squad"%_t)
-            else
-                player:sendChatMessage("", 1, "Not enough space in squad."%_t)
-            end
-        end
-
-    end
-
-    if receiverHangar:getSquadFreeSlots(receiverSquad) > 0 then
-        if receiverHangar:fighterTypeMatchesSquad(fighter, receiverSquad) then
-            senderHangar:removeFighter(index, squad)
-            receiverHangar:addFighter(receiverSquad, fighter)
-        else
-            player:sendChatMessage("", 1, "The fighter type doesn't match the type of the squad."%_t)
-        end
-    end
-
-    invokeClientFunction(player, "updateData")
-end
-
-function TransferCrewGoods.transferAllFighters(sender, receiver) -- overridden
-    if not onServer() then return end
-
-    local player = Player(callingPlayer)
-    if not player then return end
-
-    local entityReceiver = Entity(receiver)
-
-    local senderEntity = Entity(sender)
-    if senderEntity.factionIndex ~= callingPlayer and senderEntity.factionIndex ~= player.allianceIndex then
-        player:sendChatMessage("", 1, "You don't own this craft."%_t)
-        return
-    end
-
-    if TCTConfig.RequireAlliancePrivileges then
-        local requiredPrivileges = {}
-        if (senderEntity.allianceOwned and senderEntity.isShip) or (entityReceiver.allianceOwned and entityReceiver.isShip) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageShips
-        end
-        if (senderEntity.allianceOwned and senderEntity.isStation) or (entityReceiver.allianceOwned and entityReceiver.isStation) then
-            requiredPrivileges[#requiredPrivileges+1] = AlliancePrivilege.ManageStations
-        end
-        if #requiredPrivileges > 0 and not getInteractingFaction(callingPlayer, unpack(requiredPrivileges)) then
-            return
-        end
-    end
-
-    -- check distance
-    local transferDistance = math.max(TCTConfig.FightersMaxTransferDistance, senderEntity.transporterRange or 0, entityReceiver.transporterRange or 0)
-    if TCTConfig.CheckIfDocked and (senderEntity.isStation or entityReceiver.isStation) then
-        if ((senderEntity.isStation and not senderEntity:isDocked(entityReceiver)) or (entityReceiver.isStation and not entityReceiver:isDocked(senderEntity)))
-          and senderEntity:getNearestDistance(entityReceiver) > transferDistance then
-            player:sendChatMessage("", 1, "You must be docked to the station to transfer fighters."%_t)
-            return
-        end
-    elseif senderEntity:getNearestDistance(entityReceiver) > transferDistance then
-        player:sendChatMessage("", 1, "You're too far away."%_t)
-        return
-    end
-
-    local senderHangar = Hangar(sender)
-    if not senderHangar then
-        player:sendChatMessage("", 1, "Missing hangar."%_t)
-        return
-    end
-    local receiverHangar = Hangar(receiver)
-    if not receiverHangar then
-        player:sendChatMessage("", 1, "Missing hangar."%_t)
-        return
-    end
-
-    local senderSquads = {senderHangar:getSquads()}
-    local receiverSquads = {receiverHangar:getSquads()}
-    local missingSquads = {}
-
-    for _, squad in pairs(senderSquads) do
-        if senderHangar:getSquadFighters(squad) > 0 then
-            local targetSquad
-
-            for _, rSquad in pairs(receiverSquads) do
-                if rSquad == squad then
-                    targetSquad = rSquad
-                    break
-                end
-            end
-
-            if not targetSquad then
-                targetSquad = receiverHangar:addSquad(senderHangar:getSquadName(squad))
-            end
-
-            for i = 0, senderHangar:getSquadFighters(squad) - 1 do
-
-                local fighter = senderHangar:getFighter(squad, 0)
-                if not fighter then
-                    eprint("fighter is nil")
-                    return
-                end
-
-                -- check squad type
-                if not receiverHangar:fighterTypeMatchesSquad(fighter, targetSquad) then
-                    player:sendChatMessage("", 1, "The fighter type doesn't match the type of the squad."%_t)
-                    break
-                end
-
-                -- check squad space
-                if receiverHangar:getSquadFreeSlots(targetSquad) == 0 then
-                    player:sendChatMessage("", 1, "Not enough space in squad."%_t)
-                    break
-                end
-                -- check hangar space
-                if receiverHangar.freeSpace < fighter.volume then
-                    player:sendChatMessage("", 1, "Not enough space in hangar."%_t)
-                    return
-                end
-
-                -- transfer
-                senderHangar:removeFighter(0, squad)
-                receiverHangar:addFighter(targetSquad, fighter)
-            end
-        end
-    end
-
-    invokeClientFunction(player, "updateData")
+    return true
 end
 
 
