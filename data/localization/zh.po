@@ -1,0 +1,54 @@
+
+msgid "In the crew and cargo tabs you can use hotkeys to move\ncertain amounts of items. Simply hold one of the\nfollowing key combinations and click '>>':\nCtrl = 5\nShift = 10\nAlt = 50\nCtrl + Shift = 100\nCtrl + Alt = 250\nShift + Alt = 500\nCtrl + Shift + Alt = 1000"
+msgstr "在人员和货物界面中，你可以使用热键移动\n特定数量的物品 '>>':\nCtrl = 5\nShift = 10\nAlt = 50\nCtrl + Shift = 100\nCtrl + Alt = 250\nShift + Alt = 500\nCtrl + Shift + Alt = 1000"
+
+msgid "Transfer Crew/Cargo/Fighters"
+msgstr "转移船员/货物/战斗机"
+
+msgid "Transfer Crew, Cargo and Fighters"
+msgstr "转移船员、货物、战斗机"
+
+msgid "Crew"
+msgstr "船员"
+
+msgid "Exchange Crew"
+msgstr "交换船员"
+
+msgid "Transfer All >>"
+msgstr "转移全部 >>"
+
+msgid "<< Transfer All"
+msgstr "<< 转移全部"
+
+msgid "Cargo"
+msgstr "货物"
+
+msgid "Exchange Cargo"
+msgstr "交换货物"
+
+msgid "/* Goods */Transfer All >>"
+msgstr "/* Goods */转移全部 >>"
+
+msgid "/* Goods */<< Transfer All"
+msgstr "/* Goods */<< 转移全部"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "${profession} (untrained)"
+msgstr "${profession} (未训练)"
+
+msgid "${profession} (level ${level})"
+msgstr "${profession} (等级 ${level})"
+
+msgid "Fighters"
+msgstr "战斗机"
+
+msgid "Torpedoes"
+msgstr "导弹"
+
+msgid "You don't own this craft."
+msgstr "你并未拥有此目标的所属权"
+
+msgid "You're too far away."
+msgstr "超过距离限制"
