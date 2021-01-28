@@ -5,6 +5,7 @@ local tct_isWindowShown, tct_favoritesFile, tct_stationFavorites, tct_playerCarg
 local tct_tabbedWindow, tct_helpLabel, tct_crewTabIndex, tct_cargoTabIndex, tct_fightersTabIndex, tct_playerCrewWorkforceLabels, tct_selfCrewWorkforceLabels, tct_playerCrewLabels, tct_selfCrewLabels, tct_playerToggleSearchBtn, tct_selfToggleSearchBtn, tct_playerCargoSearchBox, tct_selfCargoSearchBox, tct_playerCargoLabels, tct_selfCargoLabels, tct_playerToggleFavoritesBtn, tct_selfToggleFavoritesBtn, tct_playerFavoriteButtons, tct_playerTrashButtons, tct_selfFavoriteButtons, tct_selfTrashButtons, tct_leftCargoLister, tct_rightCargoLister, tct_leftCargoFrame, tct_rightCargoFrame -- Client UI
 local tct_playerSortGoodsFavorites, tct_selfSortGoodsFavorites, tct_playerSortGoods, tct_selfSortGoods, tct_getGoodColor, tct_createPlayerCargoRow, tct_createSelfCargoRow -- Client local functions
 local TCTConfig -- Client/Server
+local tct_GT134 -- Server
 
 
 if onClient() then
@@ -13,10 +14,10 @@ if onClient() then
 UTF8 = include("azimuthlib-utf8")
 
 local configOptions = {
-  _version = { default = "1.7", comment = "Config version. Don't touch" },
-  EnableFavorites = { default = true, comment = "Enable favorites/trash system." },
-  ToggleFavoritesByDefault = { default = true, comment = "If favorites system is enabled, it will be turned on by default when you open transfer window." },
-  EnableCrewWorkforcePreview = { default = true, comment = "Show current an minimal crew workforce in crew transfer tab." }
+  _version = {"1.7", comment = "Config version. Don't touch"},
+  EnableFavorites = {true, comment = "Enable favorites/trash system."},
+  ToggleFavoritesByDefault = {true, comment = "If favorites system is enabled, it will be turned on by default when you open transfer window."},
+  EnableCrewWorkforcePreview = {true, comment = "Show current an minimal crew workforce in crew transfer tab."}
 }
 local isModified
 TCTConfig, isModified = Azimuth.loadConfig("TransferCargoTweaks", configOptions)
@@ -495,7 +496,7 @@ function TransferCrewGoods.onShowWindow() -- overridden
     other:registerCallback("onCrewChanged", "onCrewChanged")
     
     if TCTConfig.EnableFavorites then -- load favorites
-        tct_favoritesFile = Azimuth.loadConfig("TransferCargoTweaks", { _version = TCTConfig._version }, true, true)
+        tct_favoritesFile = Azimuth.loadConfig("TransferCargoTweaks", {_version = TCTConfig._version}, true, true)
         local favorites = tct_favoritesFile[Entity().index.string] or { {}, {} }
         if not favorites[1] then favorites[1] = {} end
         if not favorites[2] then favorites[2] = {} end
@@ -1666,24 +1667,32 @@ else -- onServer
 
 
 local configOptions = {
-  _version = { default = "1.9", comment = "Config version. Don't touch" },
-  MaxTransferDistance = { default = 20, min = 2, max = 20000, comment = "Specify max distance for transferring crew, cargo, fighters and torpedos." },
-  CheckIfDocked = { default = true, comment = "If enabled, in ship <-> station transfer game will just check if ship is docked instead of checking distance." }
+  _version = {"2.0", comment = "Config version. Don't touch"},
+  MaxTransferDistance = {20, min = 2, max = 20000, comment = "Specify max distance for transferring crew, cargo, fighters and torpedos."},
+  DockingAreaTransfer = {true, comment = "If enabled, ship <-> station transfer game will just check if ship is in the docking area instead of checking distance."}
 }
 local isModified
 TCTConfig, isModified = Azimuth.loadConfig("TransferCargoTweaks", configOptions)
 if TCTConfig._version == "1.1" then
     isModified = true
     TCTConfig._version = "1.9"
-    TCTConfig.MaxTransferDistance = TCTConfig.CargoMaxTransferDistance or 20
+    TCTConfig.MaxTransferDistance = TCTConfig.CargoMaxTransferDistance and TCTConfig.CargoMaxTransferDistance or 20
     TCTConfig.FightersMaxTransferDistance = nil
     TCTConfig.CargoMaxTransferDistance = nil
     TCTConfig.CrewMaxTransferDistance = nil
     TCTConfig.RequireAlliancePrivileges = nil
 end
+if TCTConfig._version == "1.9" then
+    isModified = true
+    TCTConfig._version = "2.0"
+    TCTConfig.DockingAreaTransfer = TCTConfig.CheckIfDocked or true
+    TCTConfig.CheckIfDocked = nil
+end
 if isModified then
     Azimuth.saveConfig("TransferCargoTweaks", TCTConfig, configOptions)
 end
+
+tct_GT134 = GameVersion() >= Version(1, 3, 4)
 
 -- CALLABLE --
 
@@ -1745,8 +1754,11 @@ function TransferCrewGoods.checkPermissionsAndDistance(player, source, target)
     if not checkEntityInteractionPermissions(target, AlliancePrivilege.ManageShips) then return false end
 
     -- check distance
-    if TCTConfig.CheckIfDocked and ((source.isStation and source:isDocked(target)) or (target.isStation and target:isDocked(source))) then
-        return true
+    if TCTConfig.DockingAreaTransfer then
+        if (source.isStation and ((tct_GT134 and source:isInDockingArea(target)) or (not tct_GT134 and source:isDocked(target))))
+          or (target.isStation and ((tct_GT134 and target:isInDockingArea(source)) or (not tct_GT134 and target:isDocked(source)))) then
+            return true
+        end
     end
     if source:getNearestDistance(target) > math.max(TCTConfig.MaxTransferDistance, source.transporterRange, target.transporterRange) then
         player:sendChatMessage("", ChatMessageType.Error, "You're too far away."%_t)
